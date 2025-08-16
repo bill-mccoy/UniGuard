@@ -1,7 +1,7 @@
-# 🎓 UniGuardian  
+# 🎓 UniGuard
 **Plataforma de Verificación Académica para Comunidades Digitales**
 
-UniGuardian es un sistema integrado de **verificación de identidad y gestión de comunidades académicas** que conecta **Discord** con **Minecraft**, creando espacios digitales **seguros, exclusivos y fáciles de administrar** para instituciones educativas.  
+UniGuardi es un sistema integrado de **verificación de identidad y gestión de comunidades académicas** que conecta **Discord** con **Minecraft**, creando espacios digitales **seguros, exclusivos y fáciles de administrar** para instituciones educativas.  
 
 ---
 
@@ -60,8 +60,8 @@ graph TD
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/tu-institucion/uniguardian.git
-cd uniguardian
+git clone https://github.com/tu-institucion/uniguard.git
+cd uniguard
 
 # 2. Instalar dependencias
 pip install -r requirements.txt
@@ -82,7 +82,7 @@ python bot.py
 sequenceDiagram
     participant U as Usuario
     participant D as Discord
-    participant G as UniGuardian
+    participant G as uniguard
     participant M as Mailjet
     participant DB as MySQL
     participant NW as Noble Whitelist
@@ -144,4 +144,4 @@ Distribuido bajo licencia **MIT**. Consulta el archivo [LICENSE](LICENSE).
 
 ---
 
-✨ *UniGuardian — Transformando comunidades académicas con espacios digitales seguros e integrados.*  
+✨ *UniGuard — Transformando comunidades académicas con espacios digitales seguros e integrados.*  
