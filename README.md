@@ -1,7 +1,7 @@
-# 🎓 UniGuard
+# 🎓 UniGuard  
 **Plataforma de Verificación Académica para Comunidades Digitales**
 
-UniGuardi es un sistema integrado de **verificación de identidad y gestión de comunidades académicas** que conecta **Discord** con **Minecraft**, creando espacios digitales **seguros, exclusivos y fáciles de administrar** para instituciones educativas.  
+UniGuard es un sistema integrado de **verificación de identidad y gestión de comunidades académicas** que conecta **Discord** con **Minecraft**, creando espacios digitales **seguros, exclusivos y fáciles de administrar** para instituciones educativas.  
 
 ---
 
@@ -27,20 +27,6 @@ UniGuardi es un sistema integrado de **verificación de identidad y gestión de 
 - **Dashboard web** para supervisión de usuarios.  
 - Estadísticas de adopción y actividad.  
 - Herramientas de **moderación y control**.  
-
----
-
-## 🏗️ Arquitectura del Sistema
-
-```mermaid
-graph TD
-    A[Discord Bot] -->|Autenticación| B(API Discord)
-    A -->|Almacenamiento| C[MySQL Database]
-    A -->|Correo| D[Mailjet API]
-    C -->|Sync Whitelist| E[Noble Whitelist (Minecraft)]
-    F[Panel Admin] --> C
-    G[Usuarios] --> A
-```
 
 ---
 
@@ -72,36 +58,6 @@ cp .env.example .env
 
 # 4. Iniciar el sistema
 python bot.py
-```
-
----
-
-## 🔑 Flujo de Verificación
-
-```mermaid
-sequenceDiagram
-    participant U as Usuario
-    participant D as Discord
-    participant G as uniguard
-    participant M as Mailjet
-    participant DB as MySQL
-    participant NW as Noble Whitelist
-
-    U->>D: Presiona botón "Verificar"
-    D->>G: Inicia proceso
-    G->>U: Solicita correo institucional
-    U->>G: Envía correo
-    G->>M: Solicita envío de código
-    M->>U: Código por email
-    U->>G: Ingresa código recibido
-    G->>DB: Verifica validez
-    DB->>G: Respuesta OK
-    G->>U: Solicita nombre de Minecraft
-    U->>G: Envía nombre
-    G->>DB: Guarda registro
-    G->>NW: Añade usuario a whitelist
-    G->>D: Asigna rol verificado
-    G->>U: Acceso confirmado
 ```
 
 ---
@@ -141,6 +97,14 @@ Antes de contribuir, revisa nuestras [directrices de contribución](CONTRIBUTING
 ## 📜 Licencia
 
 Distribuido bajo licencia **MIT**. Consulta el archivo [LICENSE](LICENSE).  
+
+---
+
+## 🛠️ Próximas Mejoras
+
+- 🔑 Integración más sencilla con **otros dominios de correos universitarios**.  
+- 🐛 Corrección de errores menores y mejoras de estabilidad.  
+- 📦 Optimización del flujo de instalación y despliegue.  
 
 ---
 
