@@ -1,6 +1,6 @@
-# Contribuyendo a UniGuardian
+# Contribuyendo a UniGuard
 
-¡Gracias por tu interés en contribuir a UniGuardian! Este documento te guiará sobre cómo participar de manera efectiva y mantener la calidad del proyecto.
+¡Gracias por tu interés en contribuir a UniGuard! Este documento te guiará sobre cómo participar de manera efectiva y mantener la calidad del proyecto.
 
 ## Cómo contribuir
 
@@ -12,7 +12,7 @@
      - Capturas de pantalla si aplica.
 
 2. **Solicitar características (Feature Requests)**
-   - Si tienes una idea para mejorar UniGuardian, abre un *Issue* con la etiqueta `feature request`.
+   - Si tienes una idea para mejorar UniGuard, abre un *Issue* con la etiqueta `feature request`.
    - Explica claramente la funcionalidad y el beneficio que aportaría.
 
 3. **Pull Requests (PRs)**
@@ -41,7 +41,7 @@ Actualmente, las mejoras planificadas incluyen:
 
 ## Licencia
 
-Recuerda que UniGuardian está bajo **licencia MIT**, por lo que tu contribución se regirá por los mismos términos.
+Recuerda que UniGuard está bajo **licencia MIT**, por lo que tu contribución se regirá por los mismos términos.
 
 ---
 
