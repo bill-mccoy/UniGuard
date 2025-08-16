@@ -45,4 +45,4 @@ Recuerda que UniGuard está bajo **licencia MIT**, por lo que tu contribución s
 
 ---
 
-¡Gracias por ayudar a mejorar UniGuardian y fortalecer las comunidades académicas digitales!
+¡Gracias por ayudar a mejorar UniGuard y fortalecer las comunidades académicas digitales!
