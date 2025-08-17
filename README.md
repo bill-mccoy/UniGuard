@@ -46,7 +46,7 @@ UniGuard es un sistema integrado de **verificación de identidad y gestión de c
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/tu-institucion/uniguard.git
+git clone https://github.com/bill-mccoy/uniguard.git
 cd uniguard
 
 # 2. Instalar dependencias
