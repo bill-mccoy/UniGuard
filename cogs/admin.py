@@ -214,7 +214,102 @@ class PlayerSelect(Select):
             self.cog_ref.state.selected_user_id = str(self.values[0])
             _save_panel_state(self.cog_ref.state.to_dict())
             await self.cog_ref.render_panel(interaction=interaction)
+class AddUserModal(Modal, title="Agregar usuario manualmente"):
+    discord_id = TextInput(
+        label="Discord ID",
+        placeholder="123456789012345678",
+        max_length=20,
+        required=True,
+    )
+    email = TextInput(
+        label="Correo institucional",
+        placeholder="usuario@mail.pucv.cl",
+        max_length=255,
+        required=True,
+    )
+    minecraft_username = TextInput(
+        label="Nombre de Minecraft",
+        placeholder="Ej: Juanito_123",
+        max_length=16,
+        required=True,
+    )
 
+    def __init__(self, cog_ref: "AdminPanelCog"):
+        super().__init__(timeout=300)
+        self.cog_ref = cog_ref
+
+    async def on_submit(self, interaction: discord.Interaction):
+        discord_id = str(self.discord_id.value).strip()
+        email = str(self.email.value).strip().lower()
+        mc_username = str(self.minecraft_username.value).strip()
+
+        # Validaciones
+        if not discord_id.isdigit() or len(discord_id) < 17:
+            return await interaction.response.send_message(
+                "❌ Discord ID inválido. Debe ser un número de 17-18 dígitos.",
+                ephemeral=True
+            )
+            
+        if not validate_university_email(email):
+            return await interaction.response.send_message(
+                "❌ Correo inválido (debe terminar en `@mail.pucv.cl`).", 
+                ephemeral=True
+            )
+            
+        if not validate_minecraft_username(mc_username):
+            return await interaction.response.send_message(
+                "❌ Nombre de Minecraft inválido. Usa letras, números y guion bajo (3-16 caracteres).",
+                ephemeral=True
+            )
+            
+        try:
+            # Actualizar base de datos
+            success = await db.update_or_insert_user(
+                email=email,
+                user_id=int(discord_id),
+                username=mc_username
+            )
+            
+            if not success:
+                raise RuntimeError("Error en la base de datos")
+                
+            # Asignar rol de verificado si el usuario está en el servidor
+            guild = self.cog_ref.bot.get_guild(self.cog_ref.bot.config.get('GUILD_ID'))
+            if guild:
+                try:
+                    member = await guild.fetch_member(int(discord_id))
+                    verified_role = guild.get_role(self.cog_ref.bot.config.get('ROLE_ID_VERIFIED'))
+                    not_verified_role = guild.get_role(self.cog_ref.bot.config.get('ROLE_ID_NOT_VERIFIED'))
+                    
+                    if verified_role:
+                        await member.add_roles(verified_role)
+                    if not_verified_role and not_verified_role in member.roles:
+                        await member.remove_roles(not_verified_role)
+                        
+                except discord.NotFound:
+                    pass  # Usuario no está en el servidor
+                except Exception as e:
+                    logger.error(f"Error asignando roles: {e}")
+            
+            await interaction.response.send_message(
+                f"✅ Usuario agregado exitosamente:\n"
+                f"- Discord ID: {discord_id}\n"
+                f"- Email: {email}\n"
+                f"- Minecraft: {mc_username}",
+                ephemeral=True
+            )
+            
+            # Actualizar panel
+            self.cog_ref.push_history(f"Usuario agregado manualmente: {discord_id} ({email}, {mc_username})")
+            await self.cog_ref.render_panel(interaction=interaction)
+            
+        except Exception as e:
+            logger.error(f"Error agregando usuario manualmente: {e}")
+            await interaction.response.send_message(
+                "❌ Error al agregar usuario. Revisa logs.",
+                ephemeral=True
+            )
+            
 class ListView(View):
     def __init__(self, cog_ref: "AdminPanelCog", rows_page: List[Tuple[str, str, Optional[str]]], has_prev: bool, has_next: bool):
         # Keep the view alive until explicitly replaced to avoid post-resume dead UI
@@ -265,6 +360,10 @@ class ListView(View):
         _save_panel_state(self.cog_ref.state.to_dict())
         await self.cog_ref.render_panel(interaction=interaction)
 
+    @button(label="➕ Agregar usuario", style=discord.ButtonStyle.success, row=2)
+    async def add_user(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.send_modal(AddUserModal(self.cog_ref))
+        
 class EditEmailModal(Modal, title="Editar correo institucional"):
     new_email = TextInput(
         label="Nuevo correo",
