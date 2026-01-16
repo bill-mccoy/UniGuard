@@ -1,111 +1,119 @@
-# 🎓 UniGuard  
-**Plataforma de Verificación Académica para Comunidades Digitales**
-
-UniGuard es un sistema integrado de **verificación de identidad y gestión de comunidades académicas** que conecta **Discord** con **Minecraft**, creando espacios digitales **seguros, exclusivos y fáciles de administrar** para instituciones educativas.  
-
----
-
-## 🚀 Características Principales
-
-### 🔒 Verificación de Identidad
-- Validación automática de **correos institucionales** (`@mail.pucv.cl`).  
-- Generación de **códigos únicos con expiración**.  
-- Protección frente a intentos de acceso no autorizados.  
-
-### 🤖 Integración con Discord
-- Asignación de roles automática (**verificado/no verificado**).  
-- Panel administrativo para gestión de usuarios.  
-- Flujo de interacción con botones y menús en Discord.  
-
-### 🎮 Conexión con Minecraft
-- Registro centralizado de nombres de usuario.  
-- **Integración directa con Noble Whitelist**.  
-- Sincronización automática de whitelist con base de datos.  
-- Gestión unificada de permisos entre plataformas.  
-
-### 📊 Gestión Administrativa
-- **Dashboard web** para supervisión de usuarios.  
-- Estadísticas de adopción y actividad.  
-- Herramientas de **moderación y control**.  
+<div align="center">
+  <h1>✨ UniGuard</h1>
+  <p>Plataforma de verificación académica y gestión de comunidades digitales</p>
+  <p>
+    <img src="https://img.shields.io/github/stars/bill-mccoy/UniGuard?style=social" alt="GitHub stars">
+    <img src="https://img.shields.io/github/license/bill-mccoy/UniGuard" alt="License">
+  </p>
+</div>
 
 ---
 
-## ⚙️ Requisitos Técnicos
+## 📌 ¿Qué es UniGuard?
 
-| Componente          | Versión mínima | Uso |
-|---------------------|---------------|-----|
-| **Python**          | 3.9+          | Lenguaje principal |
-| **MySQL**           | 8.0+          | Almacenamiento persistente |
-| **Discord Server**  | N/A           | Entorno de despliegue con permisos admin |
-| **Mailjet**         | Cuenta activa | Envío de correos de verificación |
-| **Noble Whitelist** | Última versión | Gestión de whitelist en Minecraft |
+**UniGuard** es una plataforma integrada diseñada para facilitar la **verificación de identidad académica** y la **gestión de comunidades digitales**, conectando **Discord** con **Minecraft** y garantizando que solo usuarios con **correos institucionales válidos** puedan acceder.
+
+Está pensada para contextos académicos, comunidades educativas y proyectos institucionales que requieren control de acceso confiable en entornos digitales.
 
 ---
 
-## 📦 Instalación y Configuración
+## 💡 Características principales
 
+### 🔐 Verificación de identidad
+- Validación automática de correos institucionales.
+- Generación de códigos únicos con expiración.
+- Protección contra accesos no autorizados.
+
+### 🎛️ Integración con Discord
+- Asignación automática de roles (verificado / no verificado).
+- Flujos de interacción mediante botones y menús.
+- Herramientas administrativas para gestión de usuarios.
+
+### 🎮 Integración con Minecraft
+- Registro centralizado de nombres de usuario Minecraft.
+- Integración directa con **Noble Whitelist**.
+- Sincronización automática de la whitelist desde la base de datos.
+- Gestión unificada de permisos entre plataformas.
+
+### 📊 Gestión administrativa
+- Base de datos centralizada de usuarios verificados.
+- Registro de eventos de autenticación.
+- Dashboard web administrativo (en desarrollo).
+
+---
+
+## 🧰 Requisitos técnicos
+
+| Componente | Versión mínima | Uso |
+|-----------|---------------|-----|
+| Python | 3.9+ | Lenguaje principal |
+| MySQL | 8.0+ | Almacenamiento persistente |
+| Discord Server | — | Comunidad con permisos de administrador |
+| Mailjet | Cuenta activa | Envío de correos |
+| Noble Whitelist | Última versión | Gestión de whitelist en Minecraft |
+
+---
+
+## 🚀 Instalación y configuración
+
+1. Clonar el repositorio:
 ```bash
-# 1. Clonar el repositorio
-git clone https://github.com/bill-mccoy/uniguard.git
-cd uniguard
+git clone https://github.com/bill-mccoy/UniGuard.git
+cd UniGuard
+```
 
-# 2. Instalar dependencias
+2. Instalar dependencias:
+```bash
 pip install -r requirements.txt
+```
 
-# 3. Configurar variables de entorno
+3. Configurar variables de entorno:
+```bash
 cp .env.example .env
-# Editar .env con tus credenciales (DB, Discord, Mailjet, Noble Whitelist)
+```
+Editar el archivo `.env` con las credenciales correspondientes (base de datos, Discord, Mailjet y Noble Whitelist).
 
-# 4. Iniciar el sistema
+4. Iniciar el sistema:
+```bash
 python bot.py
 ```
 
 ---
 
-## 🎯 Casos de Uso Institucional
+## 🧩 Casos de uso
 
-- Comunidades privadas en Discord con acceso verificado.  
-- Servidores de Minecraft académicos con **Noble Whitelist** automático.  
-- Eventos virtuales interdisciplinarios en entornos digitales.  
-- Proyectos colaborativos con acceso controlado.  
-- Espacios de **tutoría y asesoría** con membresía validada.  
+- Comunidades privadas en Discord con acceso verificado.
+- Servidores de Minecraft académicos con whitelist automática.
+- Eventos virtuales interdisciplinarios.
+- Proyectos colaborativos con acceso controlado.
+- Espacios de tutoría y asesoría académica.
 
 ---
 
-## 💡 Beneficios para Instituciones
+## 🎯 Beneficios institucionales
 
-- **Seguridad mejorada** → Acceso restringido a usuarios verificados.  
-- **Eficiencia** → Procesos automatizados de verificación.  
-- **Integración real con Minecraft** gracias a **Noble Whitelist**.  
-- **Experiencia unificada** → Discord + Minecraft en un solo flujo.  
-- **Escalabilidad** → Arquitectura modular adaptable.  
+- Seguridad mejorada y control de acceso.
+- Procesos de verificación automatizados.
+- Reducción de carga administrativa.
+- Integración real entre Discord y Minecraft.
+- Arquitectura escalable y adaptable.
 
 ---
 
 ## 🤝 Contribuciones
 
-Este proyecto sigue las guías de contribución open source. Puedes aportar mediante:  
-
-- Reportes de errores (**Issues**).  
-- Solicitudes de características (**Feature Requests**).  
-- Pull Requests con mejoras documentadas.  
-
-Antes de contribuir, revisa nuestras [directrices de contribución](CONTRIBUTING.md).  
+Las contribuciones son bienvenidas mediante:
+- Reportes de errores (Issues).
+- Solicitudes de nuevas funcionalidades.
+- Pull Requests con mejoras documentadas.
 
 ---
 
-## 📜 Licencia
+## 📄 Licencia
 
-Distribuido bajo licencia **MIT**. Consulta el archivo [LICENSE](LICENSE).  
-
----
-
-## 🛠️ Próximas Mejoras
-
-- 🔑 Integración más sencilla con **otros dominios de correos universitarios**.  
-- 🐛 Corrección de errores menores y mejoras de estabilidad.  
-- 📦 Optimización del flujo de instalación y despliegue.  
+Este proyecto se distribuye bajo licencia **MIT**.  
+Consulta el archivo `LICENSE` para más información.
 
 ---
 
-✨ *UniGuard — Transformando comunidades académicas con espacios digitales seguros e integrados.*  
+✨ *UniGuard — Transformando comunidades académicas con espacios digitales seguros e integrados.*
