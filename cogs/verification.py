@@ -1,92 +1,111 @@
 import discord
 from discord.ext import commands
-from discord.ui import View, Button
+from discord.ui import View, Select, Button
 import logging
 import asyncio
 import os
-from typing import Optional
-
-from utils import generate_verification_code, hash_code, validate_university_email, validate_minecraft_username
+from utils import generate_verification_code, hash_code, validate_university_email, validate_minecraft_username, FACULTIES
 import db
 from emailer import send_verification_email_async
 
 logger = logging.getLogger("verification")
 
-TOKEN_TTL = int(os.getenv("VERIFICATION_TOKEN_TTL", 600))  # 10 minutes
-MAX_TOKEN_ATTEMPTS = int(os.getenv("VERIFICATION_MAX_ATTEMPTS", 5))
-MC_USERNAME_CONFIRM_TIMEOUT = 300  # 5 minutes
+# ---------------------------------------------------
+# COMPONENTES DE UI (Vistas y Selectores)
+# ---------------------------------------------------
 
-# --- Role helpers ---
+class CareerSelect(Select):
+    def __init__(self, faculty_name, cog, user_id):
+        self.cog = cog
+        self.user_id = user_id
+        careers = FACULTIES.get(faculty_name, {})
+        
+        options = []
+        for name, code in careers.items():
+            # El value es el CODIGO (ej: ICI), el label es el NOMBRE (ej: Ing. Civil Informática)
+            options.append(discord.SelectOption(label=name, description=f"Código: {code}", value=code))
+        
+        super().__init__(placeholder="Selecciona tu Carrera...", min_values=1, max_values=1, options=options[:25])
 
-def _get_verified_role_id(bot) -> int:
-    rid = bot.config.get("ROLE_ID_VERIFIED") if hasattr(bot, "config") else (os.getenv("ROLE_ID_VERIFIED") or 0)
-    try:
-        return int(rid) or 0
-    except Exception:
-        return 0
+    async def callback(self, interaction: discord.Interaction):
+        code = self.values[0]
+        
+        # Guardar carrera y avanzar estado
+        async with self.cog.lock:
+            if self.user_id in self.cog.user_states:
+                self.cog.user_states[self.user_id]["career_code"] = code
+                self.cog.user_states[self.user_id]["stage"] = "awaiting_mc"
+        
+        await interaction.response.send_message(
+            f"✅ Carrera guardada: **{code}**\n\n📝 **Último paso:** Escribe tu **Nombre de Minecraft** (Java Edition) exacto.", 
+            ephemeral=True
+        )
+        self.view.stop()
 
+class FacultySelect(Select):
+    def __init__(self, cog, user_id):
+        self.cog = cog
+        self.user_id = user_id
+        options = [discord.SelectOption(label=fac) for fac in FACULTIES.keys()]
+        super().__init__(placeholder="¿De qué Facultad eres?...", min_values=1, max_values=1, options=options[:25])
 
-def is_verified_by_role(bot, member: Optional[discord.Member]) -> bool:
-    role_id = _get_verified_role_id(bot)
-    if not role_id or member is None:
-        return False
-    try:
-        return any(r.id == role_id for r in getattr(member, "roles", []))
-    except Exception:
-        return False
-
+    async def callback(self, interaction: discord.Interaction):
+        faculty = self.values[0]
+        # Lanzar siguiente menu
+        view = View()
+        view.add_item(CareerSelect(faculty, self.cog, self.user_id))
+        await interaction.response.send_message(f"🏛️ Facultad: **{faculty}**\nBusca tu carrera en la lista:", view=view, ephemeral=True)
 
 class VerificationView(View):
     def __init__(self, cog):
         super().__init__(timeout=None)
         self.cog = cog
 
-    @discord.ui.button(label="Verificar", style=discord.ButtonStyle.green, custom_id="verify_button")
-    async def verify_button(self, interaction: discord.Interaction, button: Button):
-        try:
-            guild = interaction.guild or self.cog.bot.get_guild(self.cog.bot.config.get('GUILD_ID'))
-            member = interaction.user if isinstance(interaction.user, discord.Member) else (guild.get_member(interaction.user.id) if guild else None)
-            if is_verified_by_role(self.cog.bot, member):
-                await interaction.response.send_message(
-                    "Ya estás verificado. Si necesitas reiniciar el proceso, contacta a un administrador. Si necesitas ayuda, dirígete al canal #soporte.",
-                    ephemeral=True
-                )
+    @discord.ui.button(label="🎓 Comenzar Verificación", style=discord.ButtonStyle.success, custom_id="verify_start")
+    async def verify(self, interaction: discord.Interaction, button: Button):
+        uid = interaction.user.id
+        
+        # 1. Anti-Spam: ¿Ya tiene una sesión abierta?
+        async with self.cog.lock:
+            if uid in self.cog.user_states:
+                await interaction.response.send_message("⚠️ Ya tienes un proceso activo. Revisa tus mensajes privados (DMs).", ephemeral=True)
                 return
 
-            await interaction.response.send_message(
-                "Te he enviado un mensaje privado con instrucciones.",
-                ephemeral=True
-            )
-            dm = await interaction.user.create_dm()
+        # 2. Check DB: ¿Ya está verificado?
+        if await db.check_existing_user(uid):
+            await interaction.response.send_message("✅ Ya estás registrado en el sistema.", ephemeral=True)
+            return
 
+        # 3. Check Discord: ¿Tiene el rol pero no está en DB? (Inconsistencia)
+        role_id = self.cog.bot.config.get('ROLE_ID_VERIFIED')
+        if role_id and isinstance(interaction.user, discord.Member):
+            if interaction.user.get_role(int(role_id)):
+                await interaction.response.send_message("🤔 Ya tienes el rol de alumno en Discord.", ephemeral=True)
+                return
+
+        # 4. Iniciar Proceso DM
+        try:
             embed = discord.Embed(
-                title="Verificación - Universidad",
-                description="¡Hola! Para comenzar la verificación, por favor responde con tu correo universitario (@mail.pucv.cl).",
-                color=discord.Color.blue()
+                title="🔐 Verificación PUCV", 
+                description="Para verificar que eres alumno, escribe tu correo institucional:\n`usuario@mail.pucv.cl`"
             )
-            embed.set_footer(text="Escribe 'cancelar' en cualquier momento para salir del proceso.")
-
-            await dm.send(embed=embed)
-
+            await interaction.user.send(embed=embed)
+            
             async with self.cog.lock:
-                logger.info("[verify_button] start flow for user=%s", interaction.user.id)
-                self.cog.user_states[interaction.user.id] = {
-                    "stage": "awaiting_email",
-                    "email": None,
-                    "mc_username": None,
+                self.cog.user_states[uid] = {
+                    "stage": "awaiting_email", 
                     "attempts": 0,
-                    "task": None,
-                    "token_hash": None,
-                    "token_created": None,
+                    "career_code": None
                 }
-                self.cog.user_states[interaction.user.id]["task"] = asyncio.create_task(
-                    self.cog._expire_state(interaction.user.id, 300))
+            
+            await interaction.response.send_message("📩 Te envié un mensaje privado. Revisa tus DMs.", ephemeral=True)
+            
         except discord.Forbidden:
-            await interaction.response.send_message(
-                "No puedo enviarte mensajes privados. Por favor habilita los DMs para este servidor y vuelve a intentar.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("❌ **Error:** No puedo enviarte mensajes privados.\nActiva los DMs en: `Ajustes de Servidor > Privacidad`.", ephemeral=True)
 
+# ---------------------------------------------------
+# LOGICA PRINCIPAL (COG)
+# ---------------------------------------------------
 
 class Verification(commands.Cog):
     def __init__(self, bot):
@@ -94,351 +113,198 @@ class Verification(commands.Cog):
         self.lock = asyncio.Lock()
         self.user_states = {}
 
-    async def reset_verification_channel(self):
-        channel_id = int(self.bot.config['VERIFICATION_CHANNEL_ID'])
-        channel = self.bot.get_channel(channel_id)
-        if channel is None:
-            logger.error(f"No se encontró el canal de verificación con ID {channel_id}")
-            return
-
-        try:
-            await channel.purge(limit=100)
-        except Exception as e:
-            logger.error(f"Error al purgar el canal: {e}")
-
-        view = VerificationView(self)
-        self.bot.add_view(view)
-
-        embed = discord.Embed(
-            title="Verificación de Usuario",
-            description="Para acceder al servidor, necesitas verificar tu identidad como estudiante.",
-            color=discord.Color.green()
-        )
-        embed.add_field(
-            name="Proceso de Verificación",
-            value="1. Haz clic en el botón 'Verificar'\n"
-                  "2. Sigue las instrucciones en mensajes privados\n"
-                  "3. Ingresa tu correo universitario (@mail.pucv.cl)\n"
-                  "4. Ingresa el código de verificación\n"
-                  "5. Proporciona tu nombre de Minecraft",
-            inline=False
-        )
-
-        await channel.send(embed=embed, view=view)
-
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("Cog Verification listo.")
-        try:
-            await self.reset_verification_channel()
-        except Exception as e:
-            logger.error(f"Error reseteando canal verificación: {e}")
+        """Monta el botón persistente al reiniciar"""
+        cid = self.bot.config.get('VERIFICATION_CHANNEL_ID')
+        if cid:
+            ch = self.bot.get_channel(int(cid))
+            if ch:
+                # Limpiar canal para que se vea prolijo
+                try:
+                    async for msg in ch.history(limit=5):
+                        if msg.author == self.bot.user: await msg.delete()
+                except: pass
+                
+                await ch.send(
+                    embed=discord.Embed(
+                        title="🛡️ Acceso UniGuard", 
+                        description="Sistema exclusivo para alumnos de la **PUCV**.\nHaz clic abajo para verificar tu cuenta y entrar al servidor.",
+                        color=0x2ecc71
+                    ),
+                    view=VerificationView(self)
+                )
 
-    async def _expire_state(self, user_id: int, ttl: int):
-        await asyncio.sleep(ttl)
-        async with self.lock:
-            state = self.user_states.get(user_id)
-            if not state:
-                return
-            stage = state.get("stage")
-            if stage in ("awaiting_email", "awaiting_token", "awaiting_mc", "confirming_mc"):
+    # --- HELPER: ASIGNACIÓN DE ROLES BLINDADA ---
+    async def _safe_assign_roles(self, guild, member, career_code, mc_name):
+        """Maneja toda la logica de Discord sin crashear si faltan permisos"""
+        logs = []
+        
+        # 1. Nickname (Manejo de Jerarquía)
+        # Si el usuario es Admin o el Dueño, esto fallará. Lo capturamos.
+        try:
+            new_nick = f"[{career_code}] {mc_name}"[:32] # Discord limita a 32 chars
+            await member.edit(nick=new_nick)
+        except discord.Forbidden:
+            logs.append("(No pude cambiar tu nick: Jerarquía insuficiente)")
+        except Exception:
+            pass
+
+        # 2. Roles Base (Verificado / No Verificado)
+        try:
+            rid_ver = int(self.bot.config.get('ROLE_ID_VERIFIED', 0))
+            rid_not = int(self.bot.config.get('ROLE_ID_NOT_VERIFIED', 0))
+            
+            r_ver = guild.get_role(rid_ver)
+            r_not = guild.get_role(rid_not)
+            
+            if r_ver: await member.add_roles(r_ver)
+            if r_not: await member.remove_roles(r_not)
+        except discord.Forbidden:
+            logs.append("(Error de permisos asignando roles base)")
+
+        # 3. Rol de Carrera (Búsqueda Inversa)
+        # Buscamos en utils.py qué nombre corresponde al código seleccionado
+        career_role_name = None
+        for faculty, careers in FACULTIES.items():
+            for name, code in careers.items():
+                if code == career_code:
+                    career_role_name = name
+                    break
+            if career_role_name: break
+        
+        if career_role_name:
+            role = discord.utils.get(guild.roles, name=career_role_name)
+            if role:
                 try:
-                    await db.delete_verification(str(user_id))
-                except Exception:
-                    pass
-                try:
-                    user = await self.bot.fetch_user(user_id)
-                    await user.send(embed=discord.Embed(
-                        title="Verificación Expirada",
-                        description="Tu proceso de verificación ha expirado por inactividad.",
-                        color=discord.Color.red()
-                    ))
-                except Exception:
-                    pass
-                task = state.get("task")
-                if task and not task.done():
-                    task.cancel()
-                self.user_states.pop(user_id, None)
+                    await member.add_roles(role)
+                except discord.Forbidden:
+                    logs.append(f"(No pude darte el rol de carrera: {career_role_name})")
+            else:
+                logger.warning(f"Rol de carrera no encontrado en Discord: '{career_role_name}'")
+        
+        return logs
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.author.bot:
-            return
-        if not isinstance(message.channel, discord.DMChannel):
-            return
-
-        user_id = message.author.id
-        content_raw = message.content.strip()
-        content = content_raw.lower()
-
-        # Fetch state
+        # Filtros básicos
+        if message.author.bot or not isinstance(message.channel, discord.DMChannel): return
+        
+        uid = message.author.id
+        content = message.content.strip()
+        
+        # Recuperar estado
         async with self.lock:
-            state = self.user_states.get(user_id)
-        if not state:
-            # allow only if they click the button first
-            try:
-                guild = self.bot.get_guild(self.bot.config['GUILD_ID'])
-                member = guild.get_member(user_id) if guild else None
-                if is_verified_by_role(self.bot, member):
-                    await message.channel.send("Ya estás verificado. Si necesitas reiniciar, contacta a un administrador.")
-                    return
-            except Exception:
-                pass
-            await message.channel.send(embed=discord.Embed(
-                title="Verificación no iniciada",
-                description="Haz clic en el botón 'Verificar' en el canal correspondiente.",
-                color=discord.Color.orange()))
+            state = self.user_states.get(uid)
+        
+        if not state: return # Usuario no está verificándose
+
+        # Cancelación global
+        if content.lower() in ["cancelar", "salir", "exit"]:
+            async with self.lock: del self.user_states[uid]
+            await message.channel.send("❌ Proceso cancelado.")
             return
 
-        # Global cancel
-        if content in ("cancel", "cancelar", "salir"):
-            try:
-                await db.delete_verification(str(user_id))
-                await db.delete_from_whitelist(str(user_id))
-            except Exception:
-                pass
-            await message.channel.send("Proceso cancelado. Puedes iniciar nuevamente cuando quieras.")
-            async with self.lock:
-                t = state.get("task")
-                if t and not t.done():
-                    t.cancel()
-                self.user_states.pop(user_id, None)
-            return
+        stage = state['stage']
 
-        stage = state.get("stage")
-
-        # Stage: awaiting_email
+        # --- ETAPA 1: VALIDAR EMAIL ---
         if stage == "awaiting_email":
-            email = content_raw  # preserve case
-            normalized = email.strip().lower()
-            ok = False
-            try:
-                ok = validate_university_email(email)
-            except Exception as e:
-                logger.warning(f"validator raised: {e}")
-            if not ok:
-                ok = normalized.endswith("@mail.pucv.cl")
-            logger.info("[awaiting_email] validator result for '%s': %s", email, ok)
-            if not ok:
-                try:
-                    await message.channel.send(embed=discord.Embed(
-                        title="Correo Inválido",
-                        description="El correo debe ser una dirección @mail.pucv.cl válida.",
-                        color=discord.Color.red()))
-                except Exception:
-                    await message.channel.send("Correo inválido. Debe terminar en @mail.pucv.cl")
+            email = content.lower()
+            if not validate_university_email(email):
+                await message.channel.send("❌ Correo inválido. Debe ser `@mail.pucv.cl`.\nIntenta de nuevo o escribe `cancelar`.")
+                return
+            
+            # Anti-Multicuenta: Correo ya usado?
+            if await db.check_existing_email(email):
+                await message.channel.send("⚠️ Este correo ya está registrado en el sistema con otro usuario Discord.")
+                async with self.lock: del self.user_states[uid]
                 return
 
-            # generate code and store in-memory
-            code = generate_verification_code()
-            hashed = hash_code(code)
-
+            # Generar y enviar
+            code = generate_verification_code(6)
             async with self.lock:
-                t = state.get("task")
-                if t and not t.done():
-                    t.cancel()
-                state.update({
-                    "stage": "awaiting_token",
+                self.user_states[uid].update({
                     "email": email,
-                    "attempts": 0,
-                    "token_hash": hashed,
-                    "token_created": asyncio.get_event_loop().time(),
+                    "code_hash": hash_code(code),
+                    "stage": "awaiting_code",
+                    "attempts": 0
                 })
-                state["task"] = asyncio.create_task(self._expire_state(user_id, TOKEN_TTL))
-
-            # best-effort DB write (non-blocking)
-            async def _bg_store():
-                try:
-                    await asyncio.wait_for(db.store_verification_code(email, hashed, str(user_id)), timeout=3)
-                except Exception as e:
-                    logger.warning(f"[bg] store_verification_code failed: {e}")
-            asyncio.create_task(_bg_store())
-
-            # send email (timeout)
-            try:
-                res = await asyncio.wait_for(send_verification_email_async(email, code), timeout=15)
-                if not res.get("success"):
-                    await message.channel.send(embed=discord.Embed(
-                        title="Error al Enviar Correo",
-                        description="No se pudo enviar el correo de verificación. Intenta nuevamente.",
-                        color=discord.Color.red()))
-                    return
-                await message.channel.send(embed=discord.Embed(
-                    title="Código Enviado",
-                    description=f"Se ha enviado un código de verificación a {email}",
-                    color=discord.Color.green()).add_field(
-                        name="Tienes 10 minutos",
-                        value="Responde con el código recibido. Escribe 'cancelar' para salir.",
-                        inline=False))
-                if self.bot.config.get("DEBUG_MODE"):
-                    await message.channel.send(f"[MODO DEBUG] Código: `{code}`")
-            except asyncio.TimeoutError:
-                await message.channel.send(embed=discord.Embed(
-                    title="Tiempo de espera agotado",
-                    description="No se pudo enviar el correo a tiempo. Intenta más tarde.",
-                    color=discord.Color.red()))
-            except Exception as e:
-                logger.error(f"Error enviando correo: {e}")
-                await message.channel.send(embed=discord.Embed(
-                    title="Error del Sistema",
-                    description="Ocurrió un error al enviar el correo.",
-                    color=discord.Color.red()))
-            return
-
-        # Stage: awaiting_token
-        if stage == "awaiting_token":
-            token = content_raw
-            hashed_input = hash_code(token)
-            token_hash = state.get("token_hash")
-            token_created = state.get("token_created") or 0
-            age = asyncio.get_event_loop().time() - token_created if token_created else TOKEN_TTL + 1
-            ok = token_hash and (hashed_input == token_hash) and (age <= TOKEN_TTL)
-
-            if ok:
-                async with self.lock:
-                    t = state.get("task")
-                    if t and not t.done():
-                        t.cancel()
-                    state["stage"] = "awaiting_mc"
-                    state["task"] = asyncio.create_task(self._expire_state(user_id, MC_USERNAME_CONFIRM_TIMEOUT))
-                await message.channel.send(embed=discord.Embed(
-                    title="¡Correo Verificado!",
-                    description="Ahora necesitamos tu nombre de Minecraft para la whitelist del servidor.",
-                    color=discord.Color.green()).add_field(
-                        name="Requisitos del nombre:",
-                        value="- Entre 3 y 16 caracteres\n- Solo letras (a-z), números (0-9) y guión bajo (_)\n- No usar caracteres especiales ni espacios",
-                        inline=False))
+            
+            sent = await send_verification_email_async(email, code)
+            if sent.get('success'):
+                await message.channel.send(f"✅ Código enviado a `{email}`.\nRevisa tu bandeja (y spam) y escríbelo aquí:")
             else:
+                await message.channel.send("🔥 Error enviando el correo. El servicio de mail falló. Intenta más tarde.")
+                logger.error(f"Mailjet error: {sent}")
+                async with self.lock: del self.user_states[uid]
+
+        # --- ETAPA 2: VALIDAR CÓDIGO ---
+        elif stage == "awaiting_code":
+            if hash_code(content) == state['code_hash']:
                 async with self.lock:
-                    state["attempts"] = state.get("attempts", 0) + 1
-                    attempts = state["attempts"]
-                if attempts >= MAX_TOKEN_ATTEMPTS:
-                    await message.channel.send(embed=discord.Embed(
-                        title="Demasiados Intentos",
-                        description=f"Has agotado el número máximo de intentos ({MAX_TOKEN_ATTEMPTS}). El proceso se cancela.",
-                        color=discord.Color.red()))
-                    async with self.lock:
-                        t = state.get("task")
-                        if t and not t.done():
-                            t.cancel()
-                        self.user_states.pop(user_id, None)
+                    self.user_states[uid]["stage"] = "selecting_career"
+                
+                # Lanzar UI de Facultad
+                view = View()
+                view.add_item(FacultySelect(self, uid))
+                await message.channel.send("🎉 ¡Código correcto!\nSelecciona tu **Facultad** en el menú de abajo:", view=view)
+            else:
+                # Contador de intentos
+                async with self.lock:
+                    self.user_states[uid]["attempts"] += 1
+                    att = self.user_states[uid]["attempts"]
+                
+                if att >= 3:
+                    await message.channel.send("⛔ Demasiados intentos fallidos. Proceso cancelado.")
+                    async with self.lock: del self.user_states[uid]
                 else:
-                    await message.channel.send(embed=discord.Embed(
-                        title="Código Incorrecto",
-                        description=f"El código ingresado no es válido. Intentos: {attempts}/{MAX_TOKEN_ATTEMPTS}",
-                        color=discord.Color.orange()).add_field(
-                            name="¿Qué hacer?",
-                            value="Verifica el código en tu correo o escribe 'cancelar' para salir.",
-                            inline=False))
-            return
+                    await message.channel.send(f"❌ Código incorrecto. Intento {att}/3.")
 
-        # Stage: awaiting_mc
-        if stage == "awaiting_mc":
-            username = content_raw.strip()
-            if not validate_minecraft_username(username):
-                await message.channel.send(embed=discord.Embed(
-                    title="Nombre Inválido",
-                    description="El nombre de Minecraft debe tener entre 3-16 caracteres y solo puede contener letras, números y guión bajo (_).",
-                    color=discord.Color.red()))
+        # --- ETAPA 3: MINECRAFT (Final) ---
+        elif stage == "awaiting_mc":
+            if not validate_minecraft_username(content):
+                await message.channel.send("❌ Nombre inválido. Solo letras (A-Z), números y guion bajo (_). Sin espacios.")
                 return
 
-            # optional: check availability via DB, but don't block success
-            try:
-                avail = await asyncio.wait_for(db.is_minecraft_username_available(username), timeout=3)
-                if not avail:
-                    await message.channel.send(embed=discord.Embed(
-                        title="Nombre en Uso",
-                        description=f"El nombre '{username}' ya está registrado en nuestra whitelist.",
-                        color=discord.Color.red()).add_field(
-                            name="Por favor elige otro nombre",
-                            value="Si crees que esto es un error, contacta a un administrador.",
-                            inline=False))
-                    return
-            except Exception:
-                logger.warning("Username availability check failed; allowing proceed")
-
-            async with self.lock:
-                t = state.get("task")
-                if t and not t.done():
-                    t.cancel()
-                state.update({
-                    "stage": "confirming_mc",
-                    "mc_username": username,
-                })
-                state["task"] = asyncio.create_task(self._expire_state(user_id, MC_USERNAME_CONFIRM_TIMEOUT))
-
-            await message.channel.send(embed=discord.Embed(
-                title="Confirmar Nombre de Minecraft",
-                description=f"¿Confirmas que tu nombre de Minecraft es **{username}**?",
-                color=discord.Color.blue()).add_field(
-                    name="Responde:",
-                    value="✅ 'si' para confirmar\n❌ 'no' para corregir",
-                    inline=False))
-            return
-
-        # Stage: confirming_mc
-        if stage == "confirming_mc":
-            if content not in ('si', 'sí', 'yes'):
-                async with self.lock:
-                    state["stage"] = "awaiting_mc"
-                await message.channel.send(embed=discord.Embed(
-                    title="Corregir Nombre",
-                    description="Por favor ingresa tu nombre de Minecraft nuevamente.",
-                    color=discord.Color.blue()))
+            career = state.get("career_code", "EST")
+            email = state['email']
+            
+            # 1. Guardar en Base de Datos (Prioridad Maxima)
+            db_success = await db.update_or_insert_user(email, uid, content, career)
+            
+            if not db_success:
+                await message.channel.send("💀 Error fatal guardando en la base de datos. Contacta a un admin.")
                 return
-
-            username = state.get("mc_username")
-            email = state.get("email")
-
-            # Best-effort DB updates; do not block success
-            async def _bg_finalize():
-                try:
-                    await asyncio.wait_for(db.update_or_insert_user(email, str(user_id), username), timeout=3)
-                    await asyncio.wait_for(db.add_to_noble_whitelist(username, user_id), timeout=3)
-                except Exception as e:
-                    logger.warning(f"[bg] finalize DB failed: {e}")
-            asyncio.create_task(_bg_finalize())
-
-            # Assign roles regardless of DB success
-            try:
-                guild = self.bot.get_guild(self.bot.config['GUILD_ID'])
-                member = guild.get_member(user_id) if guild else None
-                role_verified = guild.get_role(self.bot.config['ROLE_ID_VERIFIED']) if guild else None
-                role_not_verified = guild.get_role(self.bot.config.get('ROLE_ID_NOT_VERIFIED')) if guild else None
-                if member and role_verified:
-                    await member.add_roles(role_verified)
-                    if role_not_verified:
-                        await member.remove_roles(role_not_verified)
-            except Exception as e:
-                logger.error(f"Error asignando roles al final para {user_id}: {e}")
-
-            await message.channel.send(embed=discord.Embed(
-                title="¡Verificación Completa!",
-                description=f"Tu nombre **{username}** ha sido procesado.",
-                color=discord.Color.green()).add_field(
-                    name="¿Qué sigue?",
-                    value="Ahora puedes unirte al servidor Minecraft con este nombre.",
-                    inline=False).set_footer(text="¡Bienvenido/a a la comunidad!"))
-
-            # Welcome message
-            try:
-                guild = self.bot.get_guild(self.bot.config['GUILD_ID'])
-                channel = guild.get_channel(self.bot.config.get('WELCOME_CHANNEL_ID'))
-                if channel:
-                    welcome_msg = f"¡Bienvenido <@{user_id}> a la comunidad! Su nombre de Minecraft es `{username}`"
-                    await channel.send(welcome_msg)
-            except Exception:
-                pass
-
-            # cleanup
-            async with self.lock:
-                t = state.get("task")
-                if t and not t.done():
-                    t.cancel()
-                self.user_states.pop(user_id, None)
-            return
-
+            
+            # 2. Gestionar Discord (Si falla, no importa tanto, ya está en la DB)
+            discord_msg = ""
+            guild = self.bot.get_guild(int(self.bot.config['GUILD_ID']))
+            
+            if guild:
+                member = guild.get_member(uid)
+                if not member:
+                    try: member = await guild.fetch_member(uid)
+                    except: pass
+                
+                if member:
+                    logs = await self._safe_assign_roles(guild, member, career, content)
+                    if logs: discord_msg = "\nNote: " + " ".join(logs)
+                else:
+                    discord_msg = "\n(No te encontré en el servidor para darte roles, pero ya estás en la whitelist)"
+            
+            # 3. Confirmación Final
+            embed = discord.Embed(
+                title="✅ ¡Verificación Exitosa!",
+                description=f"Bienvenido/a, **{content}**.\nYa tienes acceso al servidor de Minecraft.",
+                color=0x2ecc71
+            )
+            if discord_msg:
+                embed.set_footer(text=discord_msg)
+            
+            await message.channel.send(embed=embed)
+            
+            # Limpiar estado
+            async with self.lock: del self.user_states[uid]
 
 async def setup(bot):
     await bot.add_cog(Verification(bot))
-    logger.info("Cog Verification agregado.")
