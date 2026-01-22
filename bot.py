@@ -4,12 +4,13 @@ import os
 import logging
 import asyncio
 from dotenv import load_dotenv
-load_dotenv()
 import discord
 from discord.ext import commands
 from uniguard import config
+from uniguard.localization import t
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+load_dotenv()
 
 intents = discord.Intents.default()
 intents.members = True
@@ -162,8 +163,7 @@ async def on_ready():
             logging.debug("Status cog cargado")
         
         logging.info("Inicialización completa")
-    except Exception as e:
-        logging.exception("Error crítico en on_ready:")
+    except Exception:
         
 if __name__ == "__main__":
     TOKEN = bot.secrets['TOKEN']

@@ -1,4 +1,5 @@
 # DEPRECATED
+# ruff: noqa
 from typing import Optional
 # The functionality has moved to the package `cogs.admin` (see `cogs/admin/cog.py`).
 # This shim is left temporarily for compatibility but can be removed.
@@ -26,7 +27,8 @@ def _fmt_user_line(row) -> str:
 
 def _filter_rows(rows, query: str):
     q = _safe_lower(query)
-    if not q: return rows
+    if not q:
+        return rows
     
     filtered = []
     for row in rows:
@@ -551,7 +553,8 @@ class SelectUser(Select):
         self.cog = cog
 
     async def callback(self, interaction):
-        if self.values[0] == "none": return
+        if self.values[0] == "none":
+            return
         self.cog.selected_uid = str(self.values[0])
         self.cog.mode = "detail"
         await self.cog.render_panel(interaction)
