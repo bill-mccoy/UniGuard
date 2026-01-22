@@ -2,8 +2,7 @@ import os
 import asyncio
 import logging
 import warnings
-from datetime import datetime, timezone
-from typing import Optional, Tuple, List, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING
 import uniguard.config as config
 if TYPE_CHECKING:
     import aiomysql
@@ -57,9 +56,16 @@ async def init_pool(minsize: int = 1, maxsize: int = 5, suppress_logs: bool = Fa
         last_exc = None
         for attempt in range(1, attempts + 1):
             try:
+                # Read DB env vars lazily so load_dotenv() can occur before this function is called
+                host = os.getenv("MYSQL_HOST", MYSQL_HOST)
+                port = int(os.getenv("MYSQL_PORT", MYSQL_PORT))
+                user = os.getenv("MYSQL_USER", MYSQL_USER)
+                password = os.getenv("MYSQL_PASS", MYSQL_PASS)
+                db_name = os.getenv("MYSQL_DB", MYSQL_DB)
+                logger.debug("Attempting DB connection to %s:%s db=%s", host, port, db_name)
                 _POOL = await aiomysql.create_pool(
-                    host=MYSQL_HOST, port=MYSQL_PORT, user=MYSQL_USER, password=MYSQL_PASS,
-                    db=MYSQL_DB, autocommit=False, minsize=minsize, maxsize=maxsize
+                    host=host, port=port, user=user, password=password,
+                    db=db_name, autocommit=False, minsize=minsize, maxsize=maxsize
                 )
                 await _ensure_tables()
                 if attempt > 1 and not suppress_logs:
@@ -147,13 +153,15 @@ async def _ensure_tables() -> None:
         logger.error(f"Error creating tables: {e}")
 
 async def _ensure_pool_or_log() -> bool:
-    if _POOL: return True
+    if _POOL:
+        return True
     # Suppress logs for normal background checks to avoid spamming
     return await init_pool(suppress_logs=True)
 
 async def is_mysql_connected() -> bool:
     try:
-        if not await _ensure_pool_or_log(): return False
+        if not await _ensure_pool_or_log():
+            return False
         if _POOL is None:
             raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
         async with _POOL.acquire() as conn:
@@ -169,7 +177,8 @@ async def is_mysql_connected() -> bool:
 
 async def check_existing_user(user_id: int) -> bool:
     """Revisa si el usuario de Discord ya esta verificado"""
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     if _POOL is None:
         raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
     async with _POOL.acquire() as conn:
@@ -179,7 +188,8 @@ async def check_existing_user(user_id: int) -> bool:
 
 async def check_existing_email(email: str) -> bool:
     """Revisa si el correo ya fue usado por otra persona"""
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     if _POOL is None:
         raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
     async with _POOL.acquire() as conn:
@@ -189,7 +199,8 @@ async def check_existing_email(email: str) -> bool:
 
 async def check_duplicate_minecraft(minecraft_name: str) -> bool:
     """Revisa si el nombre de Minecraft ya existe en la whitelist"""
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     if _POOL is None:
         raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
     async with _POOL.acquire() as conn:
@@ -200,7 +211,8 @@ async def check_duplicate_minecraft(minecraft_name: str) -> bool:
 # --- LOGICA DE USUARIOS ---
 
 async def store_verification_code(email: str, hashed_code: str, user_id: int) -> bool:
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     try:
         if _POOL is None:
             raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
@@ -222,7 +234,8 @@ async def update_or_insert_user(email: Optional[str], user_id: int, username: Op
     - If `u_type` is provided, it will be applied/updated (e.g., 'student' or 'guest').
     - If `u_type` is None, the function will NOT overwrite the existing `type` on duplicate keys (avoids accidentally converting guests to students).
     """
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     try:
         if _POOL is None:
             raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
@@ -258,7 +271,8 @@ async def update_or_insert_user(email: Optional[str], user_id: int, username: Op
         return False
 
 async def add_guest_user(discord_id: int, mc_username: str, real_name: str, sponsor_id: int) -> Tuple[bool, str]:
-    if not await _ensure_pool_or_log(): return False, "DB muerta"
+    if not await _ensure_pool_or_log():
+        return False, "DB muerta"
     
     if _POOL is None:
         raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
@@ -273,13 +287,16 @@ async def add_guest_user(discord_id: int, mc_username: str, real_name: str, spon
         async with conn.cursor() as cur:
             await cur.execute("SELECT type FROM verifications WHERE user_id = %s FOR UPDATE", (sponsor_id,))
             row = await cur.fetchone()
-            if not row: return False, "El Padrino no existe."
-            if row[0] != 'student': return False, "Solo estudiantes pueden apadrinar."
+            if not row:
+                return False, "El Padrino no existe."
+            if row[0] != 'student':
+                return False, "Solo estudiantes pueden apadrinar."
 
             await cur.execute("SELECT count(*) FROM verifications WHERE sponsor_id = %s FOR UPDATE", (sponsor_id,))
             cnt = await cur.fetchone()
             current = cnt[0] if cnt else 0
-            if current >= max_guests: return False, f"Este padrino ya tiene cupo lleno ({max_guests})."
+            if current >= max_guests:
+                return False, f"Este padrino ya tiene cupo lleno ({max_guests})."
 
             try:
                 await cur.execute("""
@@ -302,7 +319,8 @@ async def add_guest_user(discord_id: int, mc_username: str, real_name: str, spon
 
 
 async def list_verified_players():
-    if not await _ensure_pool_or_log(): return []
+    if not await _ensure_pool_or_log():
+        return []
     try:
         if _POOL is None:
             raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
@@ -318,7 +336,8 @@ async def list_verified_players():
         return []
 
 async def delete_verification(uid):
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     try:
         if _POOL is None:
             raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
@@ -332,7 +351,8 @@ async def delete_verification(uid):
         return False
 
 async def delete_from_whitelist(uid):
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     try:
         if _POOL is None:
             raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
@@ -359,7 +379,8 @@ async def full_user_delete(uid):
         return False
 
 async def set_whitelist_flag(uid, enabled):
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     try:
         if _POOL is None:
             raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
@@ -373,7 +394,8 @@ async def set_whitelist_flag(uid, enabled):
         return False
 
 async def get_whitelist_flag(uid):
-    if not await _ensure_pool_or_log(): return None
+    if not await _ensure_pool_or_log():
+        return None
     if _POOL is None:
         raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
     async with _POOL.acquire() as conn:
@@ -383,7 +405,8 @@ async def get_whitelist_flag(uid):
             return r[0] if r else None
 
 async def set_suspension_reason(uid, reason: Optional[str]):
-    if not await _ensure_pool_or_log(): return False
+    if not await _ensure_pool_or_log():
+        return False
     try:
         if _POOL is None:
             raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
@@ -400,7 +423,8 @@ async def set_suspension_reason(uid, reason: Optional[str]):
         return False
 
 async def get_suspension_reason(uid) -> Optional[str]:
-    if not await _ensure_pool_or_log(): return None
+    if not await _ensure_pool_or_log():
+        return None
     if _POOL is None:
         raise RuntimeError("MySQL pool no inicializada (_POOL is None)")
     async with _POOL.acquire() as conn:

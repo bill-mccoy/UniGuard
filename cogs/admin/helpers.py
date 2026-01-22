@@ -23,7 +23,8 @@ def _fmt_user_line(row) -> str:
 
 def _filter_rows(rows, query: str):
     q = _safe_lower(query)
-    if not q: return rows
+    if not q:
+        return rows
     
     filtered = []
     for row in rows:

@@ -1,4 +1,3 @@
-import pytest
 from uniguard.emailer import _prepare_attachments, _render_verification_text, _render_verification_html
 
 

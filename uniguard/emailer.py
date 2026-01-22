@@ -286,7 +286,9 @@ async def send_verification_email_async(
 
 # Quick test helper when running file directly
 if __name__ == "__main__":
-    import argparse, asyncio, logging
+    import argparse
+    import asyncio
+    import logging
     logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser()
     parser.add_argument("--to", help="Recipient email (env TEST_MAIL_TO if omitted)", default=os.getenv("TEST_MAIL_TO"))

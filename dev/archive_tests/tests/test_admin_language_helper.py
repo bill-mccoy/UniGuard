@@ -1,5 +1,3 @@
-import pytest
-from types import SimpleNamespace
 from cogs.admin.cog import AdminPanelCog
 from uniguard import config
 

@@ -1,6 +1,4 @@
-import re
-import pytest
-from uniguard.utils import generate_verification_code, hash_code, validate_minecraft_username, FACULTIES, validate_university_email, set_allowed_email_domains, get_allowed_email_domains
+from uniguard.utils import generate_verification_code, hash_code, validate_minecraft_username, FACULTIES, validate_university_email, set_allowed_email_domains
 
 
 def test_generate_code_length():

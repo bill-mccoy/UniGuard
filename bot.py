@@ -164,8 +164,9 @@ async def on_ready():
         
         logging.info("Inicialización completa")
     except Exception:
-        
-if __name__ == "__main__":
+        logging.exception("Error crítico en on_ready:")
+
+if __name__ == "__main__": 
     TOKEN = bot.secrets['TOKEN']
     if not TOKEN:
         raise SystemExit("DISCORD_TOKEN no configurado en .env")

@@ -1,4 +1,3 @@
-import pytest
 from cogs.admin.helpers import _safe_lower, _fmt_user_line, _filter_rows, _slice_page
 
 

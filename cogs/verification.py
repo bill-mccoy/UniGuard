@@ -3,7 +3,6 @@ from discord.ext import commands
 from discord.ui import View, Select, Button
 import logging
 import asyncio
-import os
 from uniguard.utils import generate_verification_code, hash_code, validate_university_email, validate_minecraft_username, FACULTIES
 from uniguard import db
 from uniguard.emailer import send_verification_email_async
@@ -227,7 +226,8 @@ class Verification(commands.Cog):
                 # Limpiar canal para que se vea prolijo
                 try:
                     async for msg in ch.history(limit=5):
-                        if msg.author == self.bot.user: await msg.delete()
+                        if msg.author == self.bot.user:
+                            await msg.delete()
                 except Exception as e:
                     logger.warning(f"Error cleaning verification channel history: {e}")
                 
@@ -264,8 +264,10 @@ class Verification(commands.Cog):
             r_ver = guild.get_role(rid_ver)
             r_not = guild.get_role(rid_not)
             
-            if r_ver: await member.add_roles(r_ver)
-            if r_not: await member.remove_roles(r_not)
+            if r_ver:
+                await member.add_roles(r_ver)
+            if r_not:
+                await member.remove_roles(r_not)
         except discord.Forbidden:
             logs.append("(Error de permisos asignando roles base)")
 
@@ -277,7 +279,8 @@ class Verification(commands.Cog):
                 if code == career_code:
                     career_role_name = name
                     break
-            if career_role_name: break
+            if career_role_name:
+                break
         
         if career_role_name:
             role = discord.utils.get(guild.roles, name=career_role_name)
@@ -294,7 +297,8 @@ class Verification(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # Filtros básicos
-        if message.author.bot or not isinstance(message.channel, discord.DMChannel): return
+        if message.author.bot or not isinstance(message.channel, discord.DMChannel):
+            return
         
         uid = message.author.id
         content = message.content.strip()
@@ -303,11 +307,13 @@ class Verification(commands.Cog):
         async with self.lock:
             state = self.user_states.get(uid)
         
-        if not state: return # Usuario no está verificándose
+        if not state:
+            return # Usuario no está verificándose
 
         # Cancelación global
         if content.lower() in ["cancelar", "salir", "exit"]:
-            async with self.lock: del self.user_states[uid]
+            async with self.lock:
+                del self.user_states[uid]
             guild_ctx = state.get('guild_id') if state else None
             embed = discord.Embed(title=t('verification.info_title', guild=guild_ctx), description=t('verification.process_cancelled', guild=guild_ctx), color=0xf1c40f)
             await message.channel.send(embed=embed)
@@ -352,7 +358,8 @@ class Verification(commands.Cog):
                 embed = discord.Embed(title=t('verification.error_title', guild=guild_ctx), description=t('verification.mail_failed', guild=guild_ctx), color=0xe74c3c)
                 await message.channel.send(embed=embed)
                 logger.error(f"Mailjet error: {sent}")
-                async with self.lock: del self.user_states[uid]
+                async with self.lock:
+                    del self.user_states[uid]
 
         # --- ETAPA 2: VALIDAR CÓDIGO ---
         elif stage == "awaiting_code":
@@ -383,7 +390,8 @@ class Verification(commands.Cog):
                 if att >= 3:
                     embed = discord.Embed(title=t('verification.error_title', guild=guild_ctx), description=t('verification.too_many_attempts', guild=guild_ctx), color=0xe74c3c)
                     await message.channel.send(embed=embed)
-                    async with self.lock: del self.user_states[uid]
+                    async with self.lock:
+                        del self.user_states[uid]
                 else:
                     embed = discord.Embed(title=t('verification.error_title', guild=guild_ctx), description=t('verification.code_incorrect', attempt=att, attempts=3, guild=guild_ctx), color=0xe74c3c)
                     await message.channel.send(embed=embed)
@@ -430,13 +438,15 @@ class Verification(commands.Cog):
             if guild:
                 member = guild.get_member(uid)
                 if not member:
-                    try: member = await guild.fetch_member(uid)
+                    try:
+                        member = await guild.fetch_member(uid)
                     except Exception as e:
                         logger.warning(f"Could not fetch member {uid}: {e}")
                 
                 if member:
                     logs = await self._safe_assign_roles(guild, member, career, content)
-                    if logs: discord_msg = "\nNote: " + " ".join(logs)
+                    if logs:
+                        discord_msg = "\nNote: " + " ".join(logs)
                 else:
                     discord_msg = "\n(No te encontré en el servidor para darte roles, pero ya estás en la whitelist)"
             
@@ -452,7 +462,8 @@ class Verification(commands.Cog):
             await message.channel.send(embed=embed)
             
             # Limpiar estado
-            async with self.lock: del self.user_states[uid]
+            async with self.lock:
+                del self.user_states[uid]
 
 async def setup(bot):
     await bot.add_cog(Verification(bot))

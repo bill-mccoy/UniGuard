@@ -108,6 +108,8 @@
     "admin.student_added": "✅ Student added.\n{log}",
     "admin.name_updated": "✅ Name updated.\n{log}",
 
+    "delete.success": "✅ Deleted: {user}\n{log}",
+
     "config.value_updated": "✅ {label} updated to: **{value}**",
     "config.channel_updated": "✅ {label} updated to: **#{channel}**",
     "config.role_updated": "✅ {label} updated to: **{role}**",

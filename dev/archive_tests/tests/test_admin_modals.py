@@ -48,7 +48,6 @@ class FakeGuild:
 
 # --- Tests ---
 
-import pytest
 
 @pytest.mark.asyncio
 async def test_search_user_modal_title_and_placeholder():

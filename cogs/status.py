@@ -4,7 +4,7 @@ from discord.ext import commands
 import asyncio
 import logging
 import psutil
-from uniguard import db, config
+from uniguard import db
 from uniguard.localization import t
 
 class Status(commands.Cog):
@@ -19,7 +19,8 @@ class Status(commands.Cog):
         self.update_task = bot.loop.create_task(self.status_loop())
         
     async def ensure_message(self):
-        if not self.enable_status: return
+        if not self.enable_status:
+            return
 
         # intentamos reciclar el mensaje anterior para no llenar el chat
         if self.message is not None:

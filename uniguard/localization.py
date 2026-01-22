@@ -4,15 +4,14 @@ function to fetch formatted messages using the current language from config.
 """
 from typing import Any, Optional, Union
 from uniguard import config
+import os
+import json
+import glob
 
 # Minimal translation catalog: moved to JSON files under /locales.
 # TRANSLATIONS will be populated at runtime by _load_locales() reading those files.
 TRANSLATIONS = {}
 
-# Load additional locales from 'locales/*.json' for easy contributions
-import os
-import json
-import glob
 LOCALES_DIR = os.path.join(os.path.dirname(__file__), '..', 'locales')  # json files with locale catalogs
 
 

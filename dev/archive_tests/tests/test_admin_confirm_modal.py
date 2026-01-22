@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from types import SimpleNamespace
 
 from cogs.admin import modals
@@ -33,9 +32,11 @@ async def test_confirm_delete_modal_accepts_variants(monkeypatch):
     cog = SimpleNamespace(manage_discord_user=fake_manage_discord_user, render_panel=lambda *a, **k: None)
     modal = modals.ConfirmDeleteModal(cog, uid=123, user_display='User#123')
 
+    from uniguard.localization import t
     for val in ['si', 'SI', 'sí', 'S', 'yes', 'Y']:
         modal.confirmation._value = val
         interaction = DummyInteraction(guild=FakeGuild())
         await modal.on_submit(interaction)
-        # Should have sent a success message for valid confirmations
-        assert any('success' in (m[0] or '').lower() for m in interaction.response.sent)
+        # Should have sent a translated success message for valid confirmations
+        expected = t('delete.success', user='User#123', log='log').lower()
+        assert any((m[0] or '').lower().strip() == expected.strip() for m in interaction.response.sent)

@@ -3,6 +3,12 @@ import re
 import secrets
 import string
 import hashlib
+import threading
+import os
+import json
+from typing import Dict, Optional
+
+from uniguard import config
 
 # --- Validadores y Helpers ---
 def generate_verification_code(length: int = 20) -> str:
@@ -12,11 +18,8 @@ def generate_verification_code(length: int = 20) -> str:
 def hash_code(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()[:10]
 
-from uniguard import config
-
 # Configurable allowed domains for university emails
 # Use a lock to protect mutable in-memory state and mirror config persistence
-import threading
 _domains_cfg, _allow_cfg = config.get("emails.allowed_domains", ["pucv.cl"]), config.get("emails.allow_subdomains", True)
 _ALLOWED_EMAIL_DOMAINS = [d.strip().lower() for d in (_domains_cfg or ["pucv.cl"]) if d and isinstance(d, str)]
 _ALLOW_SUBDOMAINS = bool(_allow_cfg)
@@ -108,9 +111,6 @@ def validate_minecraft_username(username: str) -> bool:
     return re.match(r'^\w{3,16}$', username) is not None
 
 # --- DATOS DE CARRERAS (migrado a JSON para facilitar ediciones por devs) ---
-import os
-import json
-from typing import Dict, Any, Optional
 
 FACULTIES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'faculties.json')
 

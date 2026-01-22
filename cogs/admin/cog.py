@@ -2,13 +2,15 @@
 from typing import Optional
 import discord
 from discord.ext import commands
-import io, csv, datetime, asyncio
-from uniguard import db, config
+import io
+import csv
+import datetime
+import asyncio
+from uniguard import db
 from uniguard.localization import t
 import logging
 from .helpers import _filter_rows, _slice_page, _fmt_user_line, PAGE_SIZE
 from .views import ListView, DetailView
-from .modals import AddStudentModal, AddGuestModal, SuspensionReasonModal, ConfirmDeleteModal, EditMCModal
 
 logger = logging.getLogger("cogs.admin")
 
@@ -426,7 +428,8 @@ class AdminPanelCog(commands.Cog):
             if not role:
                 for n in names:
                     role = discord.utils.get(guild.roles, name=n)
-                    if role: break
+                    if role:
+                        break
             return role
 
         # LOGICA SEGUN ACCION
@@ -437,18 +440,22 @@ class AdminPanelCog(commands.Cog):
                 r_ver = get_role_smart(rid_verified, ["Alumno", "Verificado"])
                 r_guest = get_role_smart(rid_guest, ["Invitado", "Apadrinado", "🤝 Invitado"])
                 
-                if r_ver and r_ver in member.roles: await member.remove_roles(r_ver)
-                if r_guest and r_guest in member.roles: await member.remove_roles(r_guest)
+                if r_ver and r_ver in member.roles:
+                    await member.remove_roles(r_ver)
+                if r_guest and r_guest in member.roles:
+                    await member.remove_roles(r_guest)
                 
                 # Devolver rol no verificado
                 r_not = get_role_smart(rid_not_ver, ["No Verificado"])
-                if r_not: await member.add_roles(r_not)
+                if r_not:
+                    await member.add_roles(r_not)
                 log.append("Roles retirados.")
 
             # --- AGREGAR ALUMNO ---
             elif action == "add_student":
                 # Nickname
-                try: await member.edit(nick=f"[EST] {mc_name}"[:32])
+                try:
+                    await member.edit(nick=f"[EST] {mc_name}"[:32])
                 except Exception as e:
                     logger.warning(f"Could not change nickname for {user_id}: {e}")
                     log.append("(No pude cambiar nick)")
@@ -464,7 +471,8 @@ class AdminPanelCog(commands.Cog):
                     else: 
                         log.append("⚠️ ERROR: No encontré rol Alumno.")
                     
-                    if r_not: await member.remove_roles(r_not)
+                    if r_not:
+                        await member.remove_roles(r_not)
                 except Exception as e:
                     logger.error(f"Error assigning student roles to {user_id}: {e}")
                     log.append(f"⚠️ Error asignando roles: {e}")
@@ -472,7 +480,8 @@ class AdminPanelCog(commands.Cog):
             # --- AGREGAR INVITADO ---
             elif action == "add_guest":
                 # Nickname
-                try: await member.edit(nick=f"[INV] {mc_name}"[:32])
+                try:
+                    await member.edit(nick=f"[INV] {mc_name}"[:32])
                 except Exception as e:
                     logger.warning(f"Could not change nickname for {user_id}: {e}")
                     log.append("(No pude cambiar nick)")
@@ -488,7 +497,8 @@ class AdminPanelCog(commands.Cog):
                     else: 
                         log.append(f"⚠️ ERROR: No encontré rol Invitado (ID buscado: {rid_guest}).")
                     
-                    if r_not: await member.remove_roles(r_not)
+                    if r_not:
+                        await member.remove_roles(r_not)
                 except Exception as e:
                     logger.error(f"Error assigning guest roles to {user_id}: {e}")
                     log.append(f"⚠️ Error asignando roles: {e}")
@@ -498,9 +508,11 @@ class AdminPanelCog(commands.Cog):
                 # Detectar prefijo actual o poner uno por defecto
                 curr_nick = member.display_name
                 prefix = "[EST]"
-                if "[INV]" in curr_nick or "[Ap]" in curr_nick: prefix = "[INV]"
+                if "[INV]" in curr_nick or "[Ap]" in curr_nick:
+                    prefix = "[INV]"
                 
-                try: await member.edit(nick=f"{prefix} {mc_name}"[:32])
+                try:
+                    await member.edit(nick=f"{prefix} {mc_name}"[:32])
                 except Exception as e:
                     logger.warning(f"Could not change nickname for {user_id}: {e}")
                     log.append("(No pude cambiar nick)")
@@ -518,10 +530,12 @@ class AdminPanelCog(commands.Cog):
         await asyncio.sleep(5)
         
         cid = self.bot.config.get('channels', {}).get('admin')
-        if not cid: return
+        if not cid:
+            return
 
         channel = self.bot.get_channel(int(cid))
-        if not channel: return
+        if not channel:
+            return
 
         try:
             async for msg in channel.history(limit=10):
@@ -570,9 +584,12 @@ class AdminPanelCog(commands.Cog):
 
             view = DetailView(self, uid)
             if interaction:
-                if not interaction.response.is_done(): await interaction.response.edit_message(embed=embed, view=view)
-                else: await interaction.edit_original_response(embed=embed, view=view)
-            elif self._msg: await self._msg.edit(content=None, embed=embed, view=view)
+                if not interaction.response.is_done():
+                    await interaction.response.edit_message(embed=embed, view=view)
+                else:
+                    await interaction.edit_original_response(embed=embed, view=view)
+            elif self._msg:
+                await self._msg.edit(content=None, embed=embed, view=view)
             return
 
         # List Mode
@@ -588,8 +605,10 @@ class AdminPanelCog(commands.Cog):
         gst = sum(1 for r in rows if r[3] == 'guest')
         
         embed = discord.Embed(title="🛡️ UniGuard Admin", color=0x2ecc71)
-        if self.query: embed.description = f"🔎 `{self.query}` ({len(filtered)})"
-        else: embed.description = f"👥 Total: {tot} | 🎓 Alumnos: {tot - gst} | 🤝 Invitados: {gst}"
+        if self.query:
+            embed.description = f"🔎 `{self.query}` ({len(filtered)})"
+        else:
+            embed.description = f"👥 Total: {tot} | 🎓 Alumnos: {tot - gst} | 🤝 Invitados: {gst}"
 
         lines = [_fmt_user_line(r) for r in page_rows]
         embed.add_field(name=f"Lista ({cur_p}/{tot_p})", value="\n".join(lines) or "Vacío", inline=False)
@@ -597,9 +616,12 @@ class AdminPanelCog(commands.Cog):
         view = ListView(self, page_rows, has_prev, has_next)
 
         if interaction:
-            if not interaction.response.is_done(): await interaction.response.edit_message(embed=embed, view=view)
-            else: await interaction.edit_original_response(embed=embed, view=view)
-        elif self._msg: await self._msg.edit(content=None, embed=embed, view=view)
+            if not interaction.response.is_done():
+                await interaction.response.edit_message(embed=embed, view=view)
+            else:
+                await interaction.edit_original_response(embed=embed, view=view)
+        elif self._msg:
+            await self._msg.edit(content=None, embed=embed, view=view)
 
 
 async def setup(bot):

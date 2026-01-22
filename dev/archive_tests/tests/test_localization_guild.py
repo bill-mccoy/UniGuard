@@ -1,4 +1,3 @@
-import pytest
 from uniguard import localization, config
 
 

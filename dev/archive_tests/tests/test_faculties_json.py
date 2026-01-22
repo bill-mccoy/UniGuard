@@ -1,7 +1,11 @@
 import json
 import os
 
+# Try archive copy first, otherwise fall back to repo-level uniguard/data/faculties.json
 P = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uniguard", "data", "faculties.json")
+if not os.path.isfile(P):
+    REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    P = os.path.join(REPO_ROOT, 'uniguard', 'data', 'faculties.json')
 
 
 def test_faculties_loadable_and_structure():

@@ -149,7 +149,8 @@ class SelectUser(Select):
         self.cog = cog
 
     async def callback(self, interaction):
-        if self.values[0] == "none": return
+        if self.values[0] == "none":
+            return
         self.cog.selected_uid = str(self.values[0])
         self.cog.mode = "detail"
         await self.cog.render_panel(interaction)

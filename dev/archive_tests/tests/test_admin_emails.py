@@ -1,5 +1,4 @@
 import pytest
-from types import SimpleNamespace
 from uniguard import config
 from uniguard.utils import get_allowed_email_domains, set_allowed_email_domains
 from cogs.admin.modals import AddEmailDomainModal
@@ -85,7 +84,7 @@ async def test_toggle_subdomains_and_remove(monkeypatch, tmp_path):
         # Remove 'a.edu' via the select callback
         # Build the select view like the real implementation
         domains, _ = get_allowed_email_domains()
-        options = [d for d in domains]
+        _options = [d for d in domains]
 
         # Simulate choosing 'a.edu' by directly calling the removal logic
         cur, allow = get_allowed_email_domains()

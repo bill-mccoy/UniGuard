@@ -1,4 +1,3 @@
-import pytest
 from cogs.verification import FacultySelect
 from uniguard.utils import FACULTIES
 

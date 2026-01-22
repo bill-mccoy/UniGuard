@@ -1,4 +1,3 @@
-import pytest
 from uniguard import utils as u
 from uniguard import config as cfg
 

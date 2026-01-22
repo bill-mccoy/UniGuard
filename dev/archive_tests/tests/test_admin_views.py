@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from types import SimpleNamespace
 
 from cogs.admin import views

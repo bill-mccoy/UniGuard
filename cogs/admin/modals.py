@@ -273,7 +273,7 @@ class SuspensionReasonModal(Modal, title="⛔ Razón de Suspensión"):
 class ConfirmDeleteModal(Modal, title="⚠️ Confirmar Eliminación"):
     """Modal para confirmar la eliminación de un usuario"""
     confirmation = TextInput(
-        label="Escribe 'si' o 'yes' para confirmar eliminación",
+        label="Confirmación (si/yes)",
         placeholder="sí",
         required=True,
         max_length=10

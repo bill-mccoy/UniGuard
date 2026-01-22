@@ -1,5 +1,3 @@
-import os
-import json
 from uniguard import config
 
 
@@ -19,7 +17,7 @@ def test_config_get_set_tmp(tmp_path):
     # set a value and check persistence
     ok = config.set("test.newvalue", 42)
     assert ok
-    loaded = config.load_config()
+    _ = config.load_config()
     assert config.get("test.newvalue") == 42
 
     # cleanup

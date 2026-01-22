@@ -2,8 +2,13 @@ import json
 import os
 import glob
 
+# Prefer local archive locales folder, but fall back to repo root locales if not present
 ROOT = os.path.dirname(os.path.dirname(__file__))
 LOCALES_DIR = os.path.join(ROOT, "locales")
+if not os.path.isdir(LOCALES_DIR):
+    # repo root (two levels up from dev/archive_tests)
+    REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    LOCALES_DIR = os.path.join(REPO_ROOT, 'locales')
 
 ESSENTIAL_KEYS = {
     "verification.dm_embed_title",

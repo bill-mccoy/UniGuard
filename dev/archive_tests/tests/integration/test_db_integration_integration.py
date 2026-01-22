@@ -1,10 +1,8 @@
 import os
 import pytest
+from uniguard import db
 
 pytestmark = pytest.mark.skipif(os.getenv('RUN_DB_INTEGRATION') != '1', reason='Integration tests require RUN_DB_INTEGRATION=1 and a running MySQL (see contrib/docker-compose.yml)')
-
-import asyncio
-from uniguard import db
 
 
 @pytest.mark.asyncio
