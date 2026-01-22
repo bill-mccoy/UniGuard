@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  uniguard-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: test-pass
+      MYSQL_DATABASE: uniguard_test
+      MYSQL_USER: uniguard
+      MYSQL_PASSWORD: uniguard_pass
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
