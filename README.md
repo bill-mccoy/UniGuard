@@ -117,3 +117,29 @@ Consulta el archivo `LICENSE` para más información.
 ---
 
 ✨ *UniGuard — Transformando comunidades académicas con espacios digitales seguros e integrados.*
+
+---
+
+## 🛠️ Desarrollo
+
+- Instala dependencias de desarrollo:
+
+```bash
+pip install -r requirements.txt -r dev-requirements.txt
+```
+
+- Ejecuta tests unitarios:
+
+```bash
+make test
+```
+
+- Ejecuta tests de integración localmente (requiere Docker):
+
+```bash
+make test-integration
+# o
+RUN_DB_INTEGRATION=1 pytest -q tests/integration
+```
+
+- Instrucciones completas para pruebas de integración: `contrib/README_DB_TESTS.md`

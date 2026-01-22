@@ -16,6 +16,7 @@ sync_roles.py
 # --- Estado del Bot (No subir) ---
 admin_panel_state.json
 admin_panel_state.json.tmp
+config.json
 
 # --- Sistema Operativo (Mac/Windows) ---
 .DS_Store
@@ -79,6 +80,8 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+# Ignore test sources on request
+/tests/
 
 # Translations
 *.mo
@@ -112,7 +115,6 @@ profile_default/
 ipython_config.py
 
 # Environments
-.env
 .envrc
 .venv
 env/
@@ -162,3 +164,4 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+/.continue
