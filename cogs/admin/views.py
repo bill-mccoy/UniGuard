@@ -4,6 +4,7 @@ from discord.ui import View, Button, Select
 from uniguard import config, db
 from .modals import (
     SearchModal,
+    SearchUserModal,
     AddStudentModal,
     AddGuestModal,
     ConfigNumberModal,
@@ -249,7 +250,7 @@ class ListView(View):
         
         # Abrir modal de búsqueda
         await interaction.response.send_modal(
-            discord.ui.Modal(title=t('modal.search_student_title'), custom_id=None)
+            SearchUserModal(self.cog, "student", on_student_selected)
         )
     
     async def add_guest_cb(self, interaction: discord.Interaction):
@@ -274,12 +275,12 @@ class ListView(View):
             
             # Buscar al invitado
             await select_interaction.followup.send_modal(
-                SearchModal(self.cog, "guest", on_guest_selected)
+                SearchUserModal(self.cog, "guest", on_guest_selected)
             )
         
         # Abrir modal de búsqueda del padrino
         await interaction.response.send_modal(
-            SearchModal(self.cog, "sponsor", on_sponsor_selected)
+            SearchUserModal(self.cog, "sponsor", on_sponsor_selected)
         )
 
 
@@ -532,6 +533,12 @@ class ConfigChannelsMenu(View):
         await interaction.response.defer()
         view = ConfigChannelSelectView(self.cog, "channels.admin", self.guild, "Canal de Admin")
         await interaction.followup.send(t('config.select_channel', label='administración'), view=view, ephemeral=True)
+
+    @discord.ui.button(label="📜 Logs", style=discord.ButtonStyle.secondary)
+    async def log_cb(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        view = ConfigChannelSelectView(self.cog, "channels.log", self.guild, "Canal de Logs")
+        await interaction.followup.send(t('config.select_channel', label='logs'), view=view, ephemeral=True)
 
 
 class ConfigLimitsMenu(View):

@@ -24,10 +24,12 @@ DEFAULT_CONFIG = {
     },
     "channels": {
         "verification": 0,
-        "admin": 0
+        "admin": 0,
+        "log": 0
     },
     "system": {
         "enable_status_msg": True,
+        "enable_log_panel": False,
         "status_interval": 300,
         "db_sync_interval": 300,
         "db_retry_attempts": 3,

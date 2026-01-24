@@ -2,11 +2,21 @@ from uniguard import utils as u
 from uniguard import config as cfg
 
 
-def test_default_domains_valid():
-    # default from config should accept pucv.cl and mail.pucv.cl
-    u.reload_email_domains_from_config()
-    assert u.validate_university_email('user@pucv.cl')
-    assert u.validate_university_email('user@mail.pucv.cl')
+def test_default_domains_valid(tmp_path):
+    # Use a temporary config to ensure test isolation and expected defaults
+    old_file = cfg.CONFIG_FILE
+    try:
+        cfg.CONFIG_FILE = str(tmp_path / "cfg_default_emails.json")
+        cfg._config = None
+        cfg.load_config()
+        # Ensure defaults
+        u.set_allowed_email_domains(['pucv.cl', 'mail.pucv.cl'], allow_subdomains=True)
+        u.reload_email_domains_from_config()
+        assert u.validate_university_email('user@pucv.cl')
+        assert u.validate_university_email('user@mail.pucv.cl')
+    finally:
+        cfg.CONFIG_FILE = old_file
+        cfg._config = None
 
 
 def test_set_allowed_domains_persistence(tmp_path):

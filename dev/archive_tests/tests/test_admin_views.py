@@ -13,6 +13,9 @@ class DummyResponse:
         self.modal = None
     async def send_message(self, content=None, **kwargs):
         self.sent.append((content, kwargs))
+    async def send(self, content=None, **kwargs):
+        # Convenience alias for tests: followup.send(...) -> send_message
+        await self.send_message(content, **kwargs)
     async def defer(self, **kwargs):
         self.deferred = True
     async def send_modal(self, modal):
@@ -187,3 +190,16 @@ async def test_add_student_and_guest_buttons(monkeypatch):
     inter3 = DummyInteraction(user=admin)
     await view.add_guest_cb(inter3)
     assert inter3.response.modal is not None
+
+
+@pytest.mark.asyncio
+async def test_config_channels_menu_has_log_button():
+    guild = FakeGuild()
+    view = views.ConfigChannelsMenu(None, guild)
+    btn = next((c for c in view.children if getattr(c, 'label', '') == '📜 Logs'), None)
+    assert btn is not None, "Expected a Logs button in ConfigChannelsMenu"
+
+    inter = DummyInteraction(guild=guild)
+    await btn.callback(inter)
+    # Callback should send a followup with the channel selection view
+    assert inter.followup.sent, "Expected followup message when clicking Logs button"

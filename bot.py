@@ -139,18 +139,20 @@ async def on_ready():
     logging.info(f"Bot conectado como {bot.user}")
     
     try:
-        # 1. Configurar LogManager primero
+        # 1. Configurar LogManager primero (opcional, controlado por config.system.enable_log_panel)
         log_channel_id = bot.config.get('channels', {}).get('log', 0)
-        if log_channel_id:
+        enable_log_panel = bot.config.get('system', {}).get('enable_log_panel', False)
+        if log_channel_id and enable_log_panel:
             log_channel = bot.get_channel(int(log_channel_id))
             if log_channel and isinstance(log_channel, discord.TextChannel):
                 log_manager = LogManager(log_channel)
                 await log_manager.start()
-                    
-            # Configurar handler de logs para Discord
-            discord_handler = DiscordLogHandler(bot.loop)
-            logging.getLogger().addHandler(discord_handler)
-            logging.info("Handler de logs configurado")
+                # Configurar handler de logs para Discord
+                discord_handler = DiscordLogHandler(bot.loop)
+                logging.getLogger().addHandler(discord_handler)
+                logging.info("Handler de logs configurado")
+        else:
+            logging.info("Discord log panel is disabled by configuration; skipping log window setup")
         
         # 2. Inicializar el panel de administración
         admin_cog = bot.get_cog("AdminPanelCog")

@@ -193,10 +193,22 @@ class AddGuestModal(Modal, title="🤝 Registrar Invitado"):
                 mc_name=mc_name
             )
             await interaction.response.send_message(t('admin.operation_result', msg=msg, log=discord_log), ephemeral=True)
-            await self.cog.render_panel(interaction)
-        else:
-            await interaction.response.send_message(t('errors.db_error', msg=msg), ephemeral=True)
 
+            # Enviar registro al canal de logs si está configurado
+            try:
+                channel_id = self.cog.bot.config.get('channels', {}).get('log', 0)
+                if channel_id:
+                    ch = self.cog.bot.get_channel(int(channel_id))
+                    if ch:
+                        log_msg = t('admin.log.add_guest', admin=interaction.user.mention, user=self.guest_user.mention, mc=mc_name)
+                        await ch.send(log_msg)
+            except Exception:
+                # No interrumpir el flujo si el canal de logs falla
+                pass
+
+            res = self.cog.render_panel(interaction)
+            if inspect.isawaitable(res):
+                await res
 
 class AddStudentModal(Modal, title="🎓 Registrar Alumno Manual"):
     email = TextInput(label="Email PUCV", placeholder="nombre@mail.pucv.cl", required=True)
@@ -229,7 +241,21 @@ class AddStudentModal(Modal, title="🎓 Registrar Alumno Manual"):
                 mc_name=mc_name
             )
             await interaction.response.send_message(t('admin.student_added', log=discord_log), ephemeral=True)
-            await self.cog.render_panel(interaction)
+
+            # Enviar registro al canal de logs si está configurado
+            try:
+                channel_id = self.cog.bot.config.get('channels', {}).get('log', 0)
+                if channel_id:
+                    ch = self.cog.bot.get_channel(int(channel_id))
+                    if ch:
+                        log_msg = t('admin.log.add_student', admin=interaction.user.mention, user=self.student_user.mention, mc=mc_name)
+                        await ch.send(log_msg)
+            except Exception:
+                pass
+
+            res = self.cog.render_panel(interaction)
+            if inspect.isawaitable(res):
+                await res
         else:
             await interaction.response.send_message(t('errors.db_save_error'), ephemeral=True)
 
@@ -267,7 +293,40 @@ class SuspensionReasonModal(Modal, title="⛔ Razón de Suspensión"):
             t('suspension.success', reason=reason),
             ephemeral=True
         )
-        await self.cog.render_panel(interaction)
+        # Log the suspension to the configured log channel (if any)
+        try:
+            channel_id = self.cog.bot.config.get('channels', {}).get('log', 0)
+            if channel_id:
+                ch = self.cog.bot.get_channel(int(channel_id))
+                if ch:
+                    # Try to resolve a member mention; fallback to uid string if not available
+                    user_repr = f"`{self.uid}`"
+                    try:
+                        if interaction and getattr(interaction, 'guild', None):
+                            member = None
+                            gm = getattr(interaction.guild, 'get_member', None)
+                            if gm:
+                                member = gm(int(self.uid))
+                            if not member and getattr(interaction.guild, 'fetch_member', None):
+                                try:
+                                    member = await interaction.guild.fetch_member(int(self.uid))
+                                except Exception:
+                                    member = None
+                            if member:
+                                user_repr = member.mention
+                    except Exception:
+                        # If anything goes wrong resolving member, continue with uid fallback
+                        pass
+
+                    log_msg = t('admin.log.suspend', admin=interaction.user.mention, user=user_repr, reason=reason)
+                    await ch.send(log_msg)
+        except Exception:
+            # Do not fail the flow if logging fails
+            pass
+
+        res = self.cog.render_panel(interaction)
+        if inspect.isawaitable(res):
+            await res
 
 
 class ConfirmDeleteModal(Modal, title="⚠️ Confirmar Eliminación"):
@@ -316,6 +375,16 @@ class ConfirmDeleteModal(Modal, title="⚠️ Confirmar Eliminación"):
             t('delete.success', user=self.user_display, log=log), 
             ephemeral=True
         )
+        # Log de la eliminación en canal de logs (si está configurado)
+        try:
+            channel_id = self.cog.bot.config.get('channels', {}).get('log', 0)
+            if channel_id:
+                ch = self.cog.bot.get_channel(int(channel_id))
+                if ch:
+                    log_msg = t('admin.log.delete', admin=interaction.user.mention, user=self.user_display)
+                    await ch.send(log_msg)
+        except Exception:
+            pass
         self.cog.mode = "list"
         self.cog.selected_uid = None
         res = self.cog.render_panel(interaction)
