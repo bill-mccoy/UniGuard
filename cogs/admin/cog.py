@@ -6,6 +6,7 @@ import io
 import csv
 import datetime
 import asyncio
+import os
 from uniguard import db
 from uniguard.localization import t
 import logging
@@ -87,6 +88,24 @@ class AdminPanelCog(commands.Cog):
             )
         except Exception as e:
             await interaction.followup.send(t('export.error', error=str(e)), ephemeral=True)
+
+    async def export_audit(self, interaction: discord.Interaction):
+        """Exporta los registros de auditoría y los envía al admin como JSON y CSV."""
+        try:
+            from uniguard import audit
+            entries = audit.read_entries()
+            if not entries:
+                await interaction.followup.send(t('audit.no_data'), ephemeral=True)
+                return False
+
+            json_path = audit.export_json()
+            csv_path = audit.export_csv()
+
+            await interaction.followup.send(content=t('audit.export_completed', filename=os.path.basename(json_path)), files=[discord.File(json_path), discord.File(csv_path)], ephemeral=True)
+            return True
+        except Exception as e:
+            await interaction.followup.send(t('export.error', error=str(e)), ephemeral=True)
+            return False
 
     async def import_csv(self, interaction: discord.Interaction, attachment: discord.Attachment, mode: str):
         """Importa datos desde un archivo CSV adjunto, validando formato y columnas. Modo: 'add' o 'overwrite'"""
@@ -186,7 +205,20 @@ class AdminPanelCog(commands.Cog):
                 f"✅ Importación finalizada. Agregados: {added}, Saltados: {skipped}, Fallidos: {failed}.\n\n" + ("Errores:\n" + "\n".join(failures)[:1500] if failures else ""),
                 ephemeral=True
             )
+            # Registrar auditoría de importación exitosa
+            try:
+                from uniguard.audit import append_entry
+                user = getattr(interaction, 'user', None)
+                append_entry(action='import_completed', admin_id=None, user_id=getattr(user, 'id', None), user_repr=getattr(user, 'mention', None), guild_id=getattr(interaction.guild, 'id', None), details={'added': added, 'skipped': skipped, 'failed': failed})
+            except Exception:
+                pass
         except Exception as e:
+            try:
+                from uniguard.audit import append_entry
+                user = getattr(interaction, 'user', None)
+                append_entry(action='import_failed', admin_id=None, user_id=getattr(user, 'id', None), guild_id=getattr(interaction.guild, 'id', None), details={'error': str(e)[:200]})
+            except Exception:
+                pass
             await interaction.followup.send(t('import.processing_error', error=str(e)[:200]), ephemeral=True)
 
     def __init__(self, bot):
@@ -244,6 +276,12 @@ class AdminPanelCog(commands.Cog):
             # Verificar que tenga un archivo adjunto
             if message.attachments:
                 attachment = message.attachments[0]
+                # Registrar auditoría de que se recibió un archivo en canal
+                try:
+                    from uniguard.audit import append_entry
+                    append_entry(action='import_channel_received', admin_id=None, user_id=message.author.id, user_repr=message.author.mention, guild_id=getattr(message.guild, 'id', None), details={'message_id': message.id, 'reference_id': message.reference.message_id})
+                except Exception:
+                    pass
                 # Limpiar el estado de espera
                 del self.pending_imports[message.reference.message_id]
                 await self.process_csv_import_channel(message, attachment, mode)
@@ -266,6 +304,13 @@ class AdminPanelCog(commands.Cog):
     async def process_csv_import_channel(self, message: discord.Message, attachment: discord.Attachment, mode: str):
         """Procesar un archivo CSV adjunto en canal"""
         try:
+            # Registrar auditoría: procesamiento iniciado en canal
+            try:
+                from uniguard.audit import append_entry
+                append_entry(action='import_channel_processing_started', admin_id=None, user_id=message.author.id, user_repr=message.author.mention, guild_id=getattr(message.guild, 'id', None), details={'message_id': message.id, 'mode': mode})
+            except Exception:
+                pass
+
             # Notificar que estamos procesando
             processing_msg = await message.channel.send(t('import.processing_in_channel', user=message.author.mention))
             
@@ -274,8 +319,20 @@ class AdminPanelCog(commands.Cog):
             
             # Eliminar mensaje de procesamiento
             await processing_msg.delete()
+
+            # Registrar auditoría: procesamiento finalizado exitosamente
+            try:
+                from uniguard.audit import append_entry
+                append_entry(action='import_channel_completed', admin_id=None, user_id=message.author.id, user_repr=message.author.mention, guild_id=getattr(message.guild, 'id', None), details={'message_id': message.id, 'mode': mode})
+            except Exception:
+                pass
             
         except Exception as e:
+            try:
+                from uniguard.audit import append_entry
+                append_entry(action='import_channel_failed', admin_id=None, user_id=message.author.id, user_repr=message.author.mention, guild_id=getattr(message.guild, 'id', None), details={'message_id': message.id, 'mode': mode, 'error': str(e)[:200]})
+            except Exception:
+                pass
             await message.channel.send(t('import.processing_error_in_channel', user=message.author.mention, error=str(e)[:100]))
 
     async def _import_csv_dm(self, message: discord.Message, attachment: discord.Attachment, mode: str):

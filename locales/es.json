@@ -213,13 +213,18 @@
     "config.menu_title": "Menú de Configuración",
     "config.menu_description": "Ajusta roles, canales y límites del servidor desde aquí.",
 
+    "config.database_title": "Base de Datos",
+    "config.database_desc": "Exportar o importar la base de datos (CSV).",
+
+    "audit.export_completed": "Auditoría exportada: {filename}",
+    "audit.no_data": "No hay datos de auditoría disponibles.",
     "import.add_mode": "✅ **Modo: Agregar nuevos**\n\nPor favor, adjunta el archivo CSV a este mensaje.\nSolo se agregarán registros que no existan en la base de datos.\n\n⏱️ **Tienes {minutes} minutos** para adjuntar el archivo.",
     "import.overwrite_mode": "⚠️ **Modo: Sobrescribir todo**\n\n¡ATENCIÓN! Esto borrará **todos los registros actuales** y los reemplazará con los del archivo.\nPor favor, adjunta el archivo CSV a este mensaje.\n⏱️ **Tienes {minutes} minutos** para adjuntarlo.",
     "import.cancelled": "❌ Importación cancelada.",
     "import.created_message_in_channel": "✅ He creado un mensaje en {channel} para que adjuntes el archivo.",
     "import.dm_sent": "📩 Te he enviado un mensaje privado para continuar con la importación.",
     "import.attach_csv": "❌ Debes adjuntar un archivo CSV a este mensaje.",
-    "import.in_channel_notice": "{user} está importando un CSV.\n\nModos disponibles:\n• `add` - Agregar solo registros nuevos\n• `overwrite` - Borrar todo y reemplazar\n\nResponde a este mensaje con el archivo CSV y escribe el modo (ej: `add` o `overwrite`).",
+    "import.in_channel_notice": "He creado un mensaje en {channel} para que adjuntes el archivo CSV (si los DMs están deshabilitados). Por favor adjunta el CSV y especifica el modo (add o overwrite).",
     "import.dm_message": "📁 **Importar CSV**\n\nPor favor selecciona el modo de importación:\n\n• **📝 Agregar nuevos**: Solo se agregarán registros que no existan\n• **⚠️ Sobrescribir todo**: Se borrarán todos los registros actuales\n\nLuego podrás adjuntar el archivo CSV directamente en este chat.",
 
     "errors.unknown_command": "❌ Comando no reconocido. Usa `!comandos`."

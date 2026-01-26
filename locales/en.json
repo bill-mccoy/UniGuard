@@ -203,13 +203,18 @@
     "config.menu_title": "Configuration Menu",
     "config.menu_description": "Adjust server roles, channels and limits from here.",
 
+    "config.database_title": "Database",
+    "config.database_desc": "Export or import the database (CSV).",
+
+    "audit.export_completed": "Audit exported: {filename}",
+    "audit.no_data": "No audit data available.",
     "import.add_mode": "✅ Mode: Add new entries\n\nPlease attach the CSV file to this message. Only new records will be added.\n\n⏱️ You have {minutes} minutes to attach the file.",
     "import.overwrite_mode": "⚠️ Mode: Overwrite all\n\nThis will delete all current records and replace them with those from the file.\nPlease attach the CSV file to this message. ⏱️ You have {minutes} minutes to attach it.",
     "import.cancelled": "❌ Import cancelled.",
     "import.created_message_in_channel": "✅ I created a message in {channel} for you to attach the file.",
     "import.dm_sent": "📩 I've sent you a private message to continue the import.",
     "import.attach_csv": "❌ You must attach a CSV file to this message.",
-    "import.in_channel_notice": "{user} is importing a CSV.\n\nModes available:\n• `add` - Only add new records\n• `overwrite` - Delete all and replace\n\nReply to this message with the CSV file and the mode (e.g., `add` or `overwrite`).",
+    "import.in_channel_notice": "I have created a message in {channel} for you to attach the CSV file (if DMs are disabled). Please attach the CSV and indicate mode (add or overwrite).",
     "import.dm_message": "📁 **Import CSV**\n\nPlease select the import mode:\n\n• **📝 Add new**: Only new records will be added\n• **⚠️ Overwrite all**: All current records will be deleted\n\nThen attach the CSV file directly in this chat.",
 
     "errors.unknown_command": "❌ Command not recognized. Use `!commands`."

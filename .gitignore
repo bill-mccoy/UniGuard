@@ -160,6 +160,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Local audit/log data
+data/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

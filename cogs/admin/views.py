@@ -325,32 +325,19 @@ class ImportFallbackView(View):
         super().__init__(timeout=60)
         self.cog = cog
         self.channel = channel
-    
-    @discord.ui.button(label="📁 Importar CSV en canal", style=discord.ButtonStyle.primary)
-    async def import_in_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Enviar mensaje en el canal (no efímero)
-        await interaction.response.defer(ephemeral=True)
-        
-        # Enviar mensaje normal en el canal
-        message = await self.channel.send(
-            f"{interaction.user.mention} está importando un CSV.\n\n"
-            "**Modos disponibles:**\n"
-            "• `add` - Agregar solo registros nuevos\n"
-            "• `overwrite` - Borrar todo y reemplazar\n\n"
-            "Responde a este mensaje con el archivo CSV y escribe el modo (ej: `add` o `overwrite`).",
-        )
-        
-        # Guardar referencia
-        self.cog.pending_imports[message.id] = {
-            'user_id': interaction.user.id,
-            'channel_id': self.channel.id,
-            'original_interaction': interaction  # Guardar referencia
-        }
-        
-        await interaction.followup.send(
-            t('import.created_message_in_channel', channel=self.channel.mention),
+
+    @discord.ui.button(label="📩 Solicitar Asistencia", style=discord.ButtonStyle.primary)
+    async def request_help(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Inform user to enable DMs and direct them to contact an admin; do NOT allow channel attachments
+        await interaction.response.send_message(
+            "Por favor habilita los DMs e intenta de nuevo, o contacta a un administrador para que te asista.",
             ephemeral=True
         )
+        try:
+            from uniguard.audit import append_entry
+            append_entry(action='import_fallback_requested', admin_id=None, user_id=interaction.user.id, user_repr=getattr(interaction.user, 'mention', None), guild_id=getattr(interaction.guild, 'id', None), details={})
+        except Exception:
+            pass
         self.stop()
 
 
@@ -415,45 +402,16 @@ class ConfigMenu(View):
             color=0x3498db
         )
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-    @discord.ui.button(label="⬇️ Exportar CSV", style=discord.ButtonStyle.success, row=2)
-    async def export_csv_cb(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Confirmación antes de exportar
-        member = getattr(interaction, 'user', None)
-        if not (isinstance(member, discord.Member) and member.guild_permissions.administrator):
-            await interaction.response.send_message(t('admin.only_admins'), ephemeral=True)
-            return
-        await interaction.response.send_message(
-            "¿Estás seguro que quieres exportar la base de datos a CSV?",
-            view=ExportConfirmView(self.cog), ephemeral=True
+    @discord.ui.button(label="🗄️ Base de Datos", style=discord.ButtonStyle.primary, row=2)
+    async def database_cb(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        view = ConfigDatabaseMenu(self.cog)
+        embed = discord.Embed(
+            title=t('config.database_title'),
+            description=t('config.database_desc'),
+            color=0x3498db
         )
-
-    @discord.ui.button(label="⬆️ Importar CSV", style=discord.ButtonStyle.danger, row=2)
-    async def import_csv_cb(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Confirmación antes de importar
-        member = getattr(interaction, 'user', None)
-        if not (isinstance(member, discord.Member) and member.guild_permissions.administrator):
-            await interaction.response.send_message(t('admin.only_admins'), ephemeral=True)
-            return
-        
-        # Primero responder que vamos a enviar un DM
-        await interaction.response.defer(ephemeral=True)
-        
-        try:
-            # Intentar enviar DM
-            await member.send(
-                t('import.dm_message'),
-                view=ImportDMView(self.cog)
-            )
-            
-            await interaction.followup.send(t('import.dm_sent'), ephemeral=True)
-            
-        except discord.Forbidden:
-            # Si no se pueden enviar DMs, usar un canal temporal
-            await interaction.followup.send(
-                t('verification.dm_forbidden'),
-                view=ImportFallbackView(self.cog, interaction.channel),
-                ephemeral=True
-            )
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
 class ExportConfirmView(View):
@@ -471,22 +429,7 @@ class ExportConfirmView(View):
         self.stop()
 
 
-class ImportFileView(View):
-    def __init__(self, cog, mode):
-        super().__init__(timeout=120)
-        self.cog = cog
-        self.mode = mode
-    @discord.ui.button(label="Procesar archivo adjunto", style=discord.ButtonStyle.primary)
-    async def process(self, interaction: discord.Interaction, button: discord.ui.Button):
-        attachments = []
-        msg = getattr(interaction, 'message', None)
-        if msg and hasattr(msg, 'attachments') and msg.attachments:
-            attachments = msg.attachments
-        if not attachments:
-            await interaction.response.send_message(t('import.attach_csv'), ephemeral=True)
-            return
-        attachment = attachments[0]
-        await self.cog.import_csv(interaction, attachment, self.mode)
+
 
 
 class ConfigRolesMenu(View):
@@ -669,6 +612,56 @@ class ConfigEmailsMenu(View):
         await interaction.response.send_message(t('emails.select_domain_to_remove'), view=RemoveSelectView(self), ephemeral=True)
     
 
+
+class ConfigDatabaseMenu(View):
+    """Submenu para operaciones de base de datos (export/import/audit)"""
+    def __init__(self, cog):
+        super().__init__(timeout=180)
+        self.cog = cog
+
+    @discord.ui.button(label="⬇️ Exportar CSV", style=discord.ButtonStyle.success)
+    async def export_cb(self, interaction: discord.Interaction, button: discord.ui.Button):
+        member = getattr(interaction, 'user', None)
+        if not (isinstance(member, discord.Member) and member.guild_permissions.administrator):
+            await interaction.response.send_message(t('admin.only_admins'), ephemeral=True)
+            return
+        await interaction.response.send_message(
+            "¿Estás seguro que quieres exportar la base de datos a CSV?",
+            view=ExportConfirmView(self.cog), ephemeral=True
+        )
+
+    @discord.ui.button(label="⬆️ Importar CSV", style=discord.ButtonStyle.danger)
+    async def import_cb(self, interaction: discord.Interaction, button: discord.ui.Button):
+        member = getattr(interaction, 'user', None)
+        if not (isinstance(member, discord.Member) and member.guild_permissions.administrator):
+            await interaction.response.send_message(t('admin.only_admins'), ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        try:
+            await member.send(
+                t('import.dm_message'),
+                view=ImportDMView(self.cog)
+            )
+            await interaction.followup.send(t('import.dm_sent'), ephemeral=True)
+        except discord.Forbidden:
+            await interaction.followup.send(
+                t('verification.dm_forbidden_ephemeral'),
+                ephemeral=True
+            )
+
+
+
+    @discord.ui.button(label="🧾 Exportar Auditoría", style=discord.ButtonStyle.secondary)
+    async def export_audit_cb(self, interaction: discord.Interaction, button: discord.ui.Button):
+        member = getattr(interaction, 'user', None)
+        if not (isinstance(member, discord.Member) and member.guild_permissions.administrator):
+            await interaction.response.send_message(t('admin.only_admins'), ephemeral=True)
+            return
+        await interaction.response.defer()
+        try:
+            await self.cog.export_audit(interaction)
+        except Exception as e:
+            await interaction.followup.send(t('export.error', error=str(e)), ephemeral=True)
 
 
 class DetailView(View):

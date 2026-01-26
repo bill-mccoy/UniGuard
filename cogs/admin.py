@@ -875,7 +875,7 @@ class ConfigMenu(View):
                 "**Habilita los DMs en:**\n"
                 "1. Ajustes de Usuario → Privacidad\n"
                 "2. Ajustes del Servidor → Privacidad\n\n"
-                "O usa el botón 'Importar CSV en canal' si ya tienes un archivo listo.",
+                "Si no puedes recibir DMs, contacta a un administrador para asistencia.",
                 view=ImportFallbackView(self.cog, interaction.channel),
                 ephemeral=True
             )
@@ -895,23 +895,7 @@ class ExportConfirmView(View):
         await interaction.response.send_message("Exportación cancelada.", ephemeral=True)
         self.stop()
 
-# Vista para recibir el archivo y llamar a import_csv con el modo seleccionado
-class ImportFileView(View):
-    def __init__(self, cog, mode):
-        super().__init__(timeout=120)
-        self.cog = cog
-        self.mode = mode
-    @discord.ui.button(label="Procesar archivo adjunto", style=discord.ButtonStyle.primary)
-    async def process(self, interaction: discord.Interaction, button: discord.ui.Button):
-        attachments = []
-        msg = getattr(interaction, 'message', None)
-        if msg and hasattr(msg, 'attachments') and msg.attachments:
-            attachments = msg.attachments
-        if not attachments:
-            await interaction.response.send_message("❌ Debes adjuntar un archivo CSV a este mensaje.", ephemeral=True)
-            return
-        attachment = attachments[0]
-        await self.cog.import_csv(interaction, attachment, self.mode)
+
 
 class ConfigRolesMenu(View):
     """Menú para configurar roles"""
@@ -1192,9 +1176,8 @@ class AdminPanelCog(commands.Cog):
         self.mode = "list"
         self.selected_uid = None
         self._msg = None
-        # Nuevo: Para rastrear importaciones pendientes
+        # Para rastrear importaciones por DM
         self.waiting_for_csv = {}  # {user_id: mode}
-        self.pending_imports = {}  # {message_id: {user_id, channel_id}}
     
     async def cog_load(self):
         self.bot.loop.create_task(self.init_panel())
@@ -1220,31 +1203,7 @@ class AdminPanelCog(commands.Cog):
                 # Procesar el archivo
                 await self.process_csv_import_dm(message, attachment, mode)
         
-        # 2. Verificar si es un mensaje en un canal con importación pendiente
-        elif message.reference and message.reference.message_id in self.pending_imports:
-            pending = self.pending_imports[message.reference.message_id]
-            
-            # Verificar que sea el usuario correcto
-            if message.author.id != pending['user_id']:
-                return
-            
-            # Buscar el modo en el contenido del mensaje
-            content = message.content.lower()
-            mode = None
-            if 'add' in content:
-                mode = 'add'
-            elif 'overwrite' in content:
-                mode = 'overwrite'
-            else:
-                await message.channel.send("❌ Por favor especifica el modo: `add` o `overwrite`")
-                return
-            
-            # Verificar que tenga un archivo adjunto
-            if message.attachments:
-                attachment = message.attachments[0]
-                # Limpiar el estado de espera
-                del self.pending_imports[message.reference.message_id]
-                await self.process_csv_import_channel(message, attachment, mode)
+
     
     async def process_csv_import_dm(self, message: discord.Message, attachment: discord.Attachment, mode: str):
         """Procesar un archivo CSV adjunto en DM"""
@@ -1262,21 +1221,7 @@ class AdminPanelCog(commands.Cog):
             error_msg = f"❌ Error al procesar el archivo: {str(e)[:100]}"
             await message.channel.send(error_msg)
     
-    async def process_csv_import_channel(self, message: discord.Message, attachment: discord.Attachment, mode: str):
-        """Procesar un archivo CSV adjunto en canal"""
-        try:
-            # Notificar que estamos procesando
-            processing_msg = await message.channel.send(f"{message.author.mention} Procesando archivo...")
-            
-            # Llamar a la función de importación
-            await self._import_csv_channel(message, attachment, mode)
-            
-            # Eliminar mensaje de procesamiento
-            await processing_msg.delete()
-            
-        except Exception as e:
-            error_msg = f"❌ Error al procesar el archivo: {str(e)[:100]}"
-            await message.channel.send(f"{message.author.mention} {error_msg}")
+
     
     async def _import_csv_dm(self, message: discord.Message, attachment: discord.Attachment, mode: str):
         """Versión de import_csv para DM"""

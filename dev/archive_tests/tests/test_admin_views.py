@@ -203,3 +203,22 @@ async def test_config_channels_menu_has_log_button():
     await btn.callback(inter)
     # Callback should send a followup with the channel selection view
     assert inter.followup.sent, "Expected followup message when clicking Logs button"
+
+@pytest.mark.asyncio
+async def test_config_menu_has_database_button():
+    guild = FakeGuild()
+    view = views.ConfigMenu(None, guild)
+    btn = next((c for c in view.children if getattr(c, 'label', '') == '🗄️ Base de Datos'), None)
+    assert btn is not None, "Expected a Database button in ConfigMenu"
+
+    inter = DummyInteraction(guild=guild)
+    await btn.callback(inter)
+    assert inter.followup.sent, "Expected a followup message when clicking Database button"
+
+    # Verify the followup view includes export, import and audit buttons
+    sent_view = inter.followup.sent[-1][1].get('view')
+    assert sent_view is not None
+    labels = [getattr(c, 'label', '') for c in sent_view.children]
+    assert '⬇️ Exportar CSV' in labels
+    assert '⬆️ Importar CSV' in labels
+    assert '🧾 Exportar Auditoría' in labels
